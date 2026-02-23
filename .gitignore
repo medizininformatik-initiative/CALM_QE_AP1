@@ -1,0 +1,15 @@
+# R session files
+.Rhistory
+.RData
+.Rproj.user/
+
+# Local credentials (not for version control)
+download_data.R
+
+# Local data directories
+source_data_giessen/
+data_marburg/
+Output/
+
+# Misc
+doku.docx
