@@ -20,7 +20,6 @@ START_DATE <- "2014-01-01"
 END_DATE <- "2024-12-31"
 OUTPUT_DIR <- ""
 
-
 # Download Limits
 # Set to Inf to download ALL data (production).
 # Set to a small number (e.g. 50) for testing.
@@ -244,7 +243,7 @@ if (nrow(table_enc) > 0) {
   cat("Saved PSN_Fall_Einrichtungskontakt\n")
 }
 
-rm(bundles_enc, table_enc, table_enc_diag)
+rm(bundles_enc, table_enc)
 gc()
 
 # Condition loading
@@ -306,7 +305,7 @@ if (nrow(table_cond) > 0) {
   cat("Saved PSN_Diagnose\n")
 }
 
-rm(bundles_cond, table_cond, ref_list, rank_list, use_list, rank_list_fixed, use_list_fixed, dummy_df, table_enc_diag_long, table_enc_diag_long)
+rm(bundles_cond, table_cond, ref_list, rank_list, use_list, rank_list_fixed, use_list_fixed, dummy_df, table_enc_diag_long)
 gc()
 
 # Procedure loading
