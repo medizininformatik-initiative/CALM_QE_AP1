@@ -197,8 +197,8 @@ cat("Starting download from", FHIR_SERVER_URL, "...\n")
 
 # Patient loading
 cat("Downloading Patients...\n")
-fhir_search(request_patient, max_bundles = MAX_BUNDLES, verbose = 1, username = FHIR_USER, password = FHIR_PW, save_to_disc = ("./data/_temp/patient"))
-bundles_person <- fhir_load("./data/_temp/patient")
+fhir_search(request_patient, max_bundles = MAX_BUNDLES, verbose = 1, username = FHIR_USER, password = FHIR_PW, save_to_disc = (paste0(OUTPUT_DIR, "/_temp/patient")))
+bundles_person <- fhir_load(paste0(OUTPUT_DIR, "/_temp/patient"))
 table_person <- fhir_crack(bundles_person, design_person, verbose = 1)
 
 # Patient Postprocessing and saving
@@ -216,8 +216,8 @@ gc()
 
 # Encounter loading
 cat("Downloading Encounters...\n")
-fhir_search(request_encounter, max_bundles = MAX_BUNDLES, verbose = 1, username = FHIR_USER, password = FHIR_PW, save_to_disc = ('./data/_temp/encounter'))
-bundles_enc <- fhir_load("./data/_temp/encounter")
+fhir_search(request_encounter, max_bundles = MAX_BUNDLES, verbose = 1, username = FHIR_USER, password = FHIR_PW, save_to_disc = (paste0(OUTPUT_DIR, "/_temp/encounter")))
+bundles_enc <- fhir_load(paste0(OUTPUT_DIR, "/_temp/encounter"))
 table_enc <- fhir_crack(bundles_enc, design_encounter, verbose = 1)
 table_enc_diag <- fhir_crack(bundles_enc, design_enc_diag, verbose = 1)
 
@@ -248,8 +248,8 @@ gc()
 
 # Condition loading
 cat("Downloading Conditions...\n")
-fhir_search(request_condition, max_bundles = MAX_BUNDLES, verbose = 1, username = FHIR_USER, password = FHIR_PW, save_to_disc = ('./data/_temp/condition'))
-bundles_cond <- fhir_load("./data/_temp/condition")
+fhir_search(request_condition, max_bundles = MAX_BUNDLES, verbose = 1, username = FHIR_USER, password = FHIR_PW, save_to_disc = (paste0(OUTPUT_DIR, "/_temp/condition")))
+bundles_cond <- fhir_load(paste0(OUTPUT_DIR, "/_temp/condition"))
 table_cond <- fhir_crack(bundles_cond, design_condition, verbose = 1)
 
 # Condition Postprocessing and saving
@@ -310,8 +310,8 @@ gc()
 
 # Procedure loading
 cat("Downloading Procedures...\n")
-fhir_search(request_procedure, max_bundles = MAX_BUNDLES, verbose = 1, username = FHIR_USER, password = FHIR_PW, save_to_disc = ('./data/_temp/procedure'))
-bundles_proc <- fhir_load("./data/_temp/procedure")
+fhir_search(request_procedure, max_bundles = MAX_BUNDLES, verbose = 1, username = FHIR_USER, password = FHIR_PW, save_to_disc = (paste0(OUTPUT_DIR, "/_temp/procedure")))
+bundles_proc <- fhir_load(paste0(OUTPUT_DIR, "/_temp/procedure"))
 table_proc <- fhir_crack(bundles_proc, design_procedure, verbose = 1)
 
 # Procedure Postprocessing and saving
@@ -334,8 +334,8 @@ gc()
 
 # Observation
 cat("Downloading Observations...\n")
-fhir_search(request_observation, max_bundles = MAX_BUNDLES, verbose = 1, username = FHIR_USER, password = FHIR_PW, save_to_disc = ('./data/_temp/observation'))
-bundles_obs <- fhir_load("./data/_temp/observation")
+fhir_search(request_observation, max_bundles = MAX_BUNDLES, verbose = 1, username = FHIR_USER, password = FHIR_PW, save_to_disc = (paste0(OUTPUT_DIR, "/_temp/observation")))
+bundles_obs <- fhir_load(paste0(OUTPUT_DIR, "/_temp/observation"))
 table_obs <- fhir_crack(bundles_obs, design_observation, verbose = 1)
 
 # Observation Postprocessing and saving
