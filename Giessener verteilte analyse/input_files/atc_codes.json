@@ -1,0 +1,490 @@
+[
+  {
+    "code": "R03BB05",
+    "description": "Aclidiniumbromid"
+  },
+  {
+    "code": "R03BA01",
+    "description": "Beclometason"
+  },
+  {
+    "code": "R01AD01",
+    "description": "Beclometason"
+  },
+  {
+    "code": "D07AC15",
+    "description": "Beclometason"
+  },
+  {
+    "code": "A07EA07",
+    "description": "Beclometason"
+  },
+  {
+    "code": "R03DX10",
+    "description": "Benralizumab"
+  },
+  {
+    "code": "S03BA03",
+    "description": "Betamethason"
+  },
+  {
+    "code": "S02BA07",
+    "description": "Betamethason"
+  },
+  {
+    "code": "S01CB04",
+    "description": "Betamethason"
+  },
+  {
+    "code": "S01BA06",
+    "description": "Betamethason"
+  },
+  {
+    "code": "R03BA04",
+    "description": "Betamethason"
+  },
+  {
+    "code": "R01AD06",
+    "description": "Betamethason"
+  },
+  {
+    "code": "H02AB01",
+    "description": "Betamethason"
+  },
+  {
+    "code": "D07XC01",
+    "description": "Betamethason"
+  },
+  {
+    "code": "D07AC01",
+    "description": "Betamethason"
+  },
+  {
+    "code": "C05AA05",
+    "description": "Betamethason"
+  },
+  {
+    "code": "A07EA04",
+    "description": "Betamethason"
+  },
+  {
+    "code": "A01AC05",
+    "description": "Betamethason"
+  },
+  {
+    "code": "R03BA02",
+    "description": "Budesonid"
+  },
+  {
+    "code": "R01AD05",
+    "description": "Budesonid"
+  },
+  {
+    "code": "D07AC09",
+    "description": "Budesonid"
+  },
+  {
+    "code": "A07EA06",
+    "description": "Budesonid"
+  },
+  {
+    "code": "R03BA08",
+    "description": "Ciclesonid"
+  },
+  {
+    "code": "R01AD13",
+    "description": "Ciclesonid"
+  },
+  {
+    "code": "R03CC13",
+    "description": "Clenbuterol"
+  },
+  {
+    "code": "R03AC14",
+    "description": "Clenbuterol"
+  },
+  {
+    "code": "R03CC63",
+    "description": "Clenbuterol und Ambroxol"
+  },
+  {
+    "code": "S01GX01",
+    "description": "Cromoglicinsäure"
+  },
+  {
+    "code": "R03BC01",
+    "description": "Cromoglicinsäure"
+  },
+  {
+    "code": "R01AC01",
+    "description": "Cromoglicinsäure"
+  },
+  {
+    "code": "D11AH03",
+    "description": "Cromoglicinsäure"
+  },
+  {
+    "code": "A07EB01",
+    "description": "Cromoglicinsäure"
+  },
+  {
+    "code": "S03BA01",
+    "description": "Dexamethason"
+  },
+  {
+    "code": "S02BA06",
+    "description": "Dexamethason"
+  },
+  {
+    "code": "S01CB01",
+    "description": "Dexamethason"
+  },
+  {
+    "code": "S01BA01",
+    "description": "Dexamethason"
+  },
+  {
+    "code": "R03BA19",
+    "description": "Dexamethason"
+  },
+  {
+    "code": "R01AD03",
+    "description": "Dexamethason"
+  },
+  {
+    "code": "H02AB02",
+    "description": "Dexamethason"
+  },
+  {
+    "code": "D10AA03",
+    "description": "Dexamethason"
+  },
+  {
+    "code": "D07XB05",
+    "description": "Dexamethason"
+  },
+  {
+    "code": "D07AB19",
+    "description": "Dexamethason"
+  },
+  {
+    "code": "C05AA09",
+    "description": "Dexamethason"
+  },
+  {
+    "code": "A01AC02",
+    "description": "Dexamethason"
+  },
+  {
+    "code": "R03CC04",
+    "description": "Fenoterol"
+  },
+  {
+    "code": "R03AC04",
+    "description": "Fenoterol"
+  },
+  {
+    "code": "G02CA03",
+    "description": "Fenoterol"
+  },
+  {
+    "code": "R03AK03",
+    "description": "Fenoterol und Cromoglicinsäure"
+  },
+  {
+    "code": "R03AL01",
+    "description": "Fenoterol und Ipratropiumbromid"
+  },
+  {
+    "code": "R03CC54",
+    "description": "Fenoterol, Kombinationen"
+  },
+  {
+    "code": "R03BA03",
+    "description": "Flunisolid"
+  },
+  {
+    "code": "R01AD04",
+    "description": "Flunisolid"
+  },
+  {
+    "code": "R03BA05",
+    "description": "Fluticason"
+  },
+  {
+    "code": "R01AD08",
+    "description": "Fluticason"
+  },
+  {
+    "code": "D07AC17",
+    "description": "Fluticason"
+  },
+  {
+    "code": "R03BA09",
+    "description": "Fluticasonfuroat"
+  },
+  {
+    "code": "R01AD12",
+    "description": "Fluticasonfuroat"
+  },
+  {
+    "code": "R03CC15",
+    "description": "Formoterol"
+  },
+  {
+    "code": "R03AC13",
+    "description": "Formoterol"
+  },
+  {
+    "code": "R03AL05",
+    "description": "Formoterol und Aclidiniumbromid"
+  },
+  {
+    "code": "R03AK08",
+    "description": "Formoterol und Beclometason"
+  },
+  {
+    "code": "R03AK07",
+    "description": "Formoterol und Budesonid"
+  },
+  {
+    "code": "R03AK11",
+    "description": "Formoterol und Fluticason"
+  },
+  {
+    "code": "R03AL07",
+    "description": "Formoterol und Glycopyrroniumbromid"
+  },
+  {
+    "code": "R03AK09",
+    "description": "Formoterol und Mometason"
+  },
+  {
+    "code": "R03AL10",
+    "description": "Formoterol und Tiotropiumbromid"
+  },
+  {
+    "code": "R03AL09",
+    "description": "Formoterol"
+  },
+  {
+    "code": "R03AL11",
+    "description": "Formoterol"
+  },
+  {
+    "code": "R03BB06",
+    "description": "Glycopyrroniumbromid"
+  },
+  {
+    "code": "A03AB02",
+    "description": "Glycopyrroniumbromid"
+  },
+  {
+    "code": "R03AC18",
+    "description": "Indacaterol"
+  },
+  {
+    "code": "R03AL04",
+    "description": "Indacaterol und Glycopyrroniumbromid"
+  },
+  {
+    "code": "R03AK14",
+    "description": "Indacaterol und Mometason"
+  },
+  {
+    "code": "R03AL12",
+    "description": "Indacaterol, Glycoopyrroiniumbromid und Mometason"
+  },
+  {
+    "code": "R03BB01",
+    "description": "Ipratropiumbromid"
+  },
+  {
+    "code": "R01AX03",
+    "description": "Ipratropiumbromid"
+  },
+  {
+    "code": "C01CX10",
+    "description": "Ipratropiumbromid"
+  },
+  {
+    "code": "R03DX09",
+    "description": "Mepolizumab"
+  },
+  {
+    "code": "R03BA07",
+    "description": "Mometason"
+  },
+  {
+    "code": "R01AD09",
+    "description": "Mometason"
+  },
+  {
+    "code": "D07XC03",
+    "description": "Mometason"
+  },
+  {
+    "code": "D07AC13",
+    "description": "Mometason"
+  },
+  {
+    "code": "R03DC53",
+    "description": "Montelukast"
+  },
+  {
+    "code": "R03DC03",
+    "description": "Montelukast"
+  },
+  {
+    "code": "S01GX04",
+    "description": "Nedocromil"
+  },
+  {
+    "code": "R03BC03",
+    "description": "Nedocromil"
+  },
+  {
+    "code": "R01AC07",
+    "description": "Nedocromil"
+  },
+  {
+    "code": "R03AC19",
+    "description": "Olodaterol"
+  },
+  {
+    "code": "R03AL06",
+    "description": "Olodaterol und Tiotropiumbromid"
+  },
+  {
+    "code": "R03DX05",
+    "description": "Omalizumab"
+  },
+  {
+    "code": "R03CC14",
+    "description": "Reproterol"
+  },
+  {
+    "code": "R03AC15",
+    "description": "Reproterol"
+  },
+  {
+    "code": "R03AK05",
+    "description": "Reproterol und Cromoglicinsäure, Dinatriumsalz"
+  },
+  {
+    "code": "R03DX08",
+    "description": "Reslizumab"
+  },
+  {
+    "code": "R03DX07",
+    "description": "Roflumilast"
+  },
+  {
+    "code": "R03CC02",
+    "description": "Salbutamol"
+  },
+  {
+    "code": "R03AC02",
+    "description": "Salbutamol"
+  },
+  {
+    "code": "R03AK13",
+    "description": "Salbutamol und Beclometason"
+  },
+  {
+    "code": "R03AK04",
+    "description": "Salbutamol und Cromoglicinsäure, Dinatriumsalz"
+  },
+  {
+    "code": "R03AL02",
+    "description": "Salbutamol und Ipratropium bromid"
+  },
+  {
+    "code": "R03AC12",
+    "description": "Salmeterol"
+  },
+  {
+    "code": "R03AK12",
+    "description": "Salmeterol und Budesonid"
+  },
+  {
+    "code": "R03AK06",
+    "description": "Salmeterol und Fluticason"
+  },
+  {
+    "code": "R03CC03",
+    "description": "Terbutalin"
+  },
+  {
+    "code": "R03AC03",
+    "description": "Terbutalin"
+  },
+  {
+    "code": "R03CC53",
+    "description": "Terbutalin, Kombinationen"
+  },
+  {
+    "code": "R03DX11",
+    "description": "Tezepelumab"
+  },
+  {
+    "code": "R03DA04",
+    "description": "Theophyllin"
+  },
+  {
+    "code": "C01EB28",
+    "description": "Theophyllin"
+  },
+  {
+    "code": "R03BB04",
+    "description": "Tiotropiumbromid"
+  },
+  {
+    "code": "S01BA05",
+    "description": "Triamcinolon"
+  },
+  {
+    "code": "R03BA06",
+    "description": "Triamcinolon"
+  },
+  {
+    "code": "R01AD11",
+    "description": "Triamcinolon"
+  },
+  {
+    "code": "H02AB08",
+    "description": "Triamcinolon"
+  },
+  {
+    "code": "D07XB02",
+    "description": "Triamcinolon"
+  },
+  {
+    "code": "D07AB09",
+    "description": "Triamcinolon"
+  },
+  {
+    "code": "C05AA12",
+    "description": "Triamcinolon"
+  },
+  {
+    "code": "A01AC01",
+    "description": "Triamcinolon"
+  },
+  {
+    "code": "R03BB07",
+    "description": "Umeclidiniumbromid"
+  },
+  {
+    "code": "R03AK10",
+    "description": "Vilanterol und Fluticasonfuroat"
+  },
+  {
+    "code": "R03AL03",
+    "description": "Vilanterol und Umeclidiniumbromid"
+  },
+  {
+    "code": "R03AL08",
+    "description": "Vilanterol, Umeclidiniumbromid und Fluticasonfuroat"
+  }
+]

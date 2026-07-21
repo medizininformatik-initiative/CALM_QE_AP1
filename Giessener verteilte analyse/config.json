@@ -1,0 +1,28 @@
+{
+    "fhir": {
+        "base_url": "https://your-fhir-server.com/fhir",
+        "auth_type": "basic",
+        "basic_auth": {
+            "username": "your_username",
+            "password": "your_password"
+        },
+        "token_auth": {
+            "bearer_token": "YOUR_TOKEN_HERE"
+        },
+        "oauth2": {
+            "token_url": "https://your-keycloak.com/auth/realms/REALM/protocol/openid-connect/token",
+            "client_id": "your_client_id",
+            "client_secret": "your_client_secret",
+            "username": "",
+            "password": ""
+        }
+    },
+    "analysis": {
+        "output_dir": "data_calmqe_distributed",
+        "results_dir": "results",
+        "asthma_copd_codes_file": "input_files/asthma_copd_codes.json",
+        "loinc_codes_file": "input_files/loinc_codes.json",
+        "atc_codes_file": "input_files/atc_codes.json",
+        "icd_codes_file": "input_files/icd_codes.json"
+    }
+}

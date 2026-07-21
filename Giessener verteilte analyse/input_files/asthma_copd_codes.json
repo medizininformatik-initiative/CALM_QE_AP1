@@ -1,0 +1,240 @@
+{
+	"codes": [
+		{
+			"code": "J44",
+			"description": "Sonstige chronische obstruktive Lungenkrankheit"
+		},
+		{
+			"code": "J44.0",
+			"description": "Sonstige chronische obstruktive Lungenkrankheit"
+		},
+		{
+			"code": "J44.00",
+			"description": "Sonstige chronische obstruktive Lungenkrankheit"
+		},
+		{
+			"code": "J44.01",
+			"description": "Sonstige chronische obstruktive Lungenkrankheit"
+		},
+		{
+			"code": "J44.02",
+			"description": "Sonstige chronische obstruktive Lungenkrankheit"
+		},
+		{
+			"code": "J44.03",
+			"description": "Sonstige chronische obstruktive Lungenkrankheit"
+		},
+		{
+			"code": "J44.09",
+			"description": "Sonstige chronische obstruktive Lungenkrankheit"
+		},
+		{
+			"code": "J44.1",
+			"description": "Sonstige chronische obstruktive Lungenkrankheit"
+		},
+		{
+			"code": "J44.10",
+			"description": "Sonstige chronische obstruktive Lungenkrankheit"
+		},
+		{
+			"code": "J44.11",
+			"description": "Sonstige chronische obstruktive Lungenkrankheit"
+		},
+		{
+			"code": "J44.12",
+			"description": "Sonstige chronische obstruktive Lungenkrankheit"
+		},
+		{
+			"code": "J44.13",
+			"description": "Sonstige chronische obstruktive Lungenkrankheit"
+		},
+		{
+			"code": "J44.19",
+			"description": "Sonstige chronische obstruktive Lungenkrankheit"
+		},
+		{
+			"code": "J44.8",
+			"description": "Sonstige chronische obstruktive Lungenkrankheit"
+		},
+		{
+			"code": "J44.80",
+			"description": "Sonstige chronische obstruktive Lungenkrankheit"
+		},
+		{
+			"code": "J44.81",
+			"description": "Sonstige chronische obstruktive Lungenkrankheit"
+		},
+		{
+			"code": "J44.82",
+			"description": "Sonstige chronische obstruktive Lungenkrankheit"
+		},
+		{
+			"code": "J44.83",
+			"description": "Sonstige chronische obstruktive Lungenkrankheit"
+		},
+		{
+			"code": "J44.89",
+			"description": "Sonstige chronische obstruktive Lungenkrankheit"
+		},
+		{
+			"code": "J44.9",
+			"description": "Sonstige chronische obstruktive Lungenkrankheit"
+		},
+		{
+			"code": "J44.90",
+			"description": "Sonstige chronische obstruktive Lungenkrankheit"
+		},
+		{
+			"code": "J44.91",
+			"description": "Sonstige chronische obstruktive Lungenkrankheit"
+		},
+		{
+			"code": "J44.92",
+			"description": "Sonstige chronische obstruktive Lungenkrankheit"
+		},
+		{
+			"code": "J44.93",
+			"description": "Sonstige chronische obstruktive Lungenkrankheit"
+		},
+		{
+			"code": "J44.99",
+			"description": "Sonstige chronische obstruktive Lungenkrankheit"
+		},
+		{
+			"code": "J45",
+			"description": "Asthma bronchiale"
+		},
+		{
+			"code": "J45.0",
+			"description": "Asthma bronchiale"
+		},
+		{
+			"code": "J45.00",
+			"description": "Asthma bronchiale"
+		},
+		{
+			"code": "J45.01",
+			"description": "Asthma bronchiale"
+		},
+		{
+			"code": "J45.02",
+			"description": "Asthma bronchiale"
+		},
+		{
+			"code": "J45.03",
+			"description": "Asthma bronchiale"
+		},
+		{
+			"code": "J45.04",
+			"description": "Asthma bronchiale"
+		},
+		{
+			"code": "J45.05",
+			"description": "Asthma bronchiale"
+		},
+		{
+			"code": "J45.09",
+			"description": "Asthma bronchiale"
+		},
+		{
+			"code": "J45.1",
+			"description": "Asthma bronchiale"
+		},
+		{
+			"code": "J45.10",
+			"description": "Asthma bronchiale"
+		},
+		{
+			"code": "J45.11",
+			"description": "Asthma bronchiale"
+		},
+		{
+			"code": "J45.12",
+			"description": "Asthma bronchiale"
+		},
+		{
+			"code": "J45.13",
+			"description": "Asthma bronchiale"
+		},
+		{
+			"code": "J45.14",
+			"description": "Asthma bronchiale"
+		},
+		{
+			"code": "J45.15",
+			"description": "Asthma bronchiale"
+		},
+		{
+			"code": "J45.19",
+			"description": "Asthma bronchiale"
+		},
+		{
+			"code": "J45.8",
+			"description": "Asthma bronchiale"
+		},
+		{
+			"code": "J45.80",
+			"description": "Asthma bronchiale"
+		},
+		{
+			"code": "J45.81",
+			"description": "Asthma bronchiale"
+		},
+		{
+			"code": "J45.82",
+			"description": "Asthma bronchiale"
+		},
+		{
+			"code": "J45.83",
+			"description": "Asthma bronchiale"
+		},
+		{
+			"code": "J45.84",
+			"description": "Asthma bronchiale"
+		},
+		{
+			"code": "J45.85",
+			"description": "Asthma bronchiale"
+		},
+		{
+			"code": "J45.89",
+			"description": "Asthma bronchiale"
+		},
+		{
+			"code": "J45.9",
+			"description": "Asthma bronchiale"
+		},
+		{
+			"code": "J45.90",
+			"description": "Asthma bronchiale"
+		},
+		{
+			"code": "J45.91",
+			"description": "Asthma bronchiale"
+		},
+		{
+			"code": "J45.92",
+			"description": "Asthma bronchiale"
+		},
+		{
+			"code": "J45.93",
+			"description": "Asthma bronchiale"
+		},
+		{
+			"code": "J45.94",
+			"description": "Asthma bronchiale"
+		},
+		{
+			"code": "J45.95",
+			"description": "Asthma bronchiale"
+		},
+		{
+			"code": "J45.99",
+			"description": "Asthma bronchiale"
+		},
+		{
+			"code": "J46",
+			"description": "Status asthmaticus"
+		}
+	]
+}
