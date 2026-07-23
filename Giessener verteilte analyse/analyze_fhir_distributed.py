@@ -446,9 +446,11 @@ def main():
     
     # Create subdirectories for output
     dir1 = os.path.join(OUTPUT_PATH, "1_behandlungsindikation")
+    dir1_erstvorstellung = os.path.join(OUTPUT_PATH, "1_erstvorstellung")
     dir2 = os.path.join(OUTPUT_PATH, "2_bestimmungsrate")
     dir3 = os.path.join(OUTPUT_PATH, "3_durchgaengig_erhoeht")
     os.makedirs(dir1, exist_ok=True)
+    os.makedirs(dir1_erstvorstellung, exist_ok=True)
     os.makedirs(dir2, exist_ok=True)
     os.makedirs(dir3, exist_ok=True)
     
@@ -459,6 +461,7 @@ def main():
     if hauptdiagnose_icd.empty or len(valid_patients) == 0:
         logging.warning("  WARNING: No valid patients or cases for evaluations. Creating empty results.")
         save_json({}, os.path.join(dir1, "auswertung1_indikation.json"))
+        save_json({}, os.path.join(dir1_erstvorstellung, "auswertung_erstvorstellung.json"))
         save_json([], os.path.join(dir2, "fhir_eos_bestimmungsrate_tabelle.json"))
         save_json({}, os.path.join(dir3, "fhir_eos_durchgaengig_erhoeht.json"))
         with open(os.path.join(dir3, "durchgaengig_erhoeht_bericht.txt"), "w", encoding="utf-8") as f:
@@ -554,17 +557,7 @@ def main():
             eos_threshold = 300.0
         logging.info(f"  -> Using threshold: {eos_threshold} (dominant unit: {unit_eos})")
         
-        # ---------------------------------------------------------------------
-        # AUSWERTUNG 1: Behandlungsindikation
-        # ---------------------------------------------------------------------
-        logging.info("  -> Processing Auswertung 1 (Behandlungsindikation)...")
-        df_all_cases_processed['has_eo'] = df_all_cases_processed['max_eo'].notna()
-        df_dedup_3 = df_all_cases_processed.sort_values(
-            by=['has_eo', 'max_eo', 'admission_dt'],
-            ascending=[False, False, True]
-        ).drop_duplicates(subset=['patient_id'], keep='first').copy()
-        
-        # Safe Kruskal-Wallis function
+        # Helper for Kruskal-Wallis
         def safe_kruskal(df, val_col, group_col, exclude_groups=None):
             if exclude_groups is None:
                 exclude_groups = []
@@ -578,6 +571,27 @@ def main():
             except Exception:
                 return None
 
+        def categorize_eos(val):
+            if pd.isna(val):
+                return "Ohne Messung"
+            elif val <= eos_threshold:
+                return f"Normal (<={eos_threshold})"
+            else:
+                return f"Erhöht (>{eos_threshold})"
+
+        subcats = ["COPD J44.0 (Infekt)", "COPD J44.1 (Exazerbation)", "COPD J44.8/9 (Sonstige/Unspez.)", "Asthma-exklusiv", "Overlap"]
+        eos_cats = ["Ohne Messung", f"Normal (<={eos_threshold})", f"Erhöht (>{eos_threshold})"]
+
+        # ---------------------------------------------------------------------
+        # AUSWERTUNG 1: Behandlungsindikation (Patientenbasiert Absolut / Max Eos)
+        # ---------------------------------------------------------------------
+        logging.info("  -> Processing Auswertung 1 (Behandlungsindikation - Max Eos)...")
+        df_all_cases_processed['has_eo'] = df_all_cases_processed['max_eo'].notna()
+        df_dedup_3 = df_all_cases_processed.sort_values(
+            by=['has_eo', 'max_eo', 'admission_dt'],
+            ascending=[False, False, True]
+        ).drop_duplicates(subset=['patient_id'], keep='first').copy()
+        
         p_val_3g = safe_kruskal(df_dedup_3, 'max_eo', 'Three_Group_Category', exclude_groups=['Andere'])
         p_val_sub = safe_kruskal(df_dedup_3, 'max_eo', 'Subcategory', exclude_groups=['COPD Sonstige', 'Andere'])
         
@@ -603,22 +617,10 @@ def main():
                 "max": round(float(vals.max()), 4) if not vals.empty else None
             }
             
-        # Categorize max_eo
-        def categorize_eos(val):
-            if pd.isna(val):
-                return "Ohne Messung"
-            elif val <= eos_threshold:
-                return f"Normal (<={eos_threshold})"
-            else:
-                return f"Erhöht (>{eos_threshold})"
-                
         df_dedup_3['Eos_Category'] = df_dedup_3['max_eo'].apply(categorize_eos)
-        
-        subcats = ["COPD J44.0 (Infekt)", "COPD J44.1 (Exazerbation)", "COPD J44.8/9 (Sonstige/Unspez.)", "Asthma-exklusiv", "Overlap"]
         df_sun = df_dedup_3[df_dedup_3['Subcategory'].isin(subcats)].copy()
         
         sun_dist = {}
-        eos_cats = ["Ohne Messung", f"Normal (<={eos_threshold})", f"Erhöht (>{eos_threshold})"]
         for sc in subcats:
             df_sc = df_sun[df_sun['Subcategory'] == sc]
             n_sc = len(df_sc)
@@ -644,10 +646,85 @@ def main():
         }
         save_json(auswertung1_indikation, os.path.join(dir1, "auswertung1_indikation.json"))
         
-        # Generate graphs using graphs.py module
-        graphs.generate_boxplot_3groups(df_dedup_3, dir1, current_date_str, today_str, p_val_3g, unit_eos)
-        graphs.generate_boxplot_subcategories(df_dedup_3, dir1, current_date_str, today_str, p_val_sub, subcats, unit_eos)
-        graphs.generate_sunburst_chart(df_dedup_3, dir1, current_date_str, today_str, subcats)
+        graphs.generate_boxplot_3groups(df_dedup_3, dir1, current_date_str, today_str, p_val_3g, unit_eos, prefix="auswertung_1")
+        graphs.generate_boxplot_subcategories(df_dedup_3, dir1, current_date_str, today_str, p_val_sub, subcats, unit_eos, prefix="auswertung_1")
+        graphs.generate_sunburst_chart(df_dedup_3, dir1, current_date_str, today_str, subcats, prefix="auswertung_1")
+
+        # ---------------------------------------------------------------------
+        # AUSWERTUNG ERSTVORSTELLUNG (Patientenbasiert - Erste Vorstellung)
+        # ---------------------------------------------------------------------
+        logging.info("  -> Processing Auswertung Erstvorstellung (Erste Vorstellung)...")
+        df_dedup_erst = df_all_cases_processed.sort_values(
+            by=['admission_dt'],
+            ascending=[True]
+        ).drop_duplicates(subset=['patient_id'], keep='first').copy()
+
+        p_val_3g_erst = safe_kruskal(df_dedup_erst, 'max_eo', 'Three_Group_Category', exclude_groups=['Andere'])
+        p_val_sub_erst = safe_kruskal(df_dedup_erst, 'max_eo', 'Subcategory', exclude_groups=['COPD Sonstige', 'Andere'])
+
+        stats_3g_erst = {}
+        for g, sub in df_dedup_erst[df_dedup_erst['Three_Group_Category'] != 'Andere'].groupby('Three_Group_Category'):
+            vals = sub['max_eo'].dropna()
+            stats_3g_erst[g] = {
+                "count": int(len(vals)),
+                "mean": round(float(vals.mean()), 4) if not vals.empty else None,
+                "median": round(float(vals.median()), 4) if not vals.empty else None,
+                "min": round(float(vals.min()), 4) if not vals.empty else None,
+                "max": round(float(vals.max()), 4) if not vals.empty else None
+            }
+
+        stats_sub_erst = {}
+        for g, sub in df_dedup_erst[~df_dedup_erst['Subcategory'].isin(['COPD Sonstige', 'Andere'])].groupby('Subcategory'):
+            vals = sub['max_eo'].dropna()
+            stats_sub_erst[g] = {
+                "count": int(len(vals)),
+                "mean": round(float(vals.mean()), 4) if not vals.empty else None,
+                "median": round(float(vals.median()), 4) if not vals.empty else None,
+                "min": round(float(vals.min()), 4) if not vals.empty else None,
+                "max": round(float(vals.max()), 4) if not vals.empty else None
+            }
+
+        df_dedup_erst['Eos_Category'] = df_dedup_erst['max_eo'].apply(categorize_eos)
+        df_sun_erst = df_dedup_erst[df_dedup_erst['Subcategory'].isin(subcats)].copy()
+
+        sun_dist_erst = {}
+        for sc in subcats:
+            df_sc = df_sun_erst[df_sun_erst['Subcategory'] == sc]
+            n_sc = len(df_sc)
+            sun_dist_erst[sc] = {
+                "total_cases": int(n_sc),
+                "categories": {}
+            }
+            for ec in eos_cats:
+                n_ec = len(df_sc[df_sc['Eos_Category'] == ec])
+                pct = (n_ec / n_sc * 100) if n_sc > 0 else 0
+                sun_dist_erst[sc]["categories"][ec] = {
+                    "count": int(n_ec),
+                    "percent": round(pct, 2)
+                }
+
+        auswertung_erstvorstellung = {
+            "unit_eos": str(unit_eos),
+            "kruskal_p_3groups": p_val_3g_erst,
+            "kruskal_p_subcategories": p_val_sub_erst,
+            "descriptive_stats_3groups": stats_3g_erst,
+            "descriptive_stats_subcategories": stats_sub_erst,
+            "sunburst_distribution": sun_dist_erst
+        }
+        save_json(auswertung_erstvorstellung, os.path.join(dir1_erstvorstellung, "auswertung_erstvorstellung.json"))
+
+        graphs.generate_boxplot_3groups(
+            df_dedup_erst, dir1_erstvorstellung, current_date_str, today_str, p_val_3g_erst, unit_eos,
+            prefix="auswertung_erstvorstellung_", subtitle_extra="Eosinophile (log-Skala) – Erstvorstellung"
+        )
+        graphs.generate_boxplot_subcategories(
+            df_dedup_erst, dir1_erstvorstellung, current_date_str, today_str, p_val_sub_erst, subcats, unit_eos,
+            prefix="auswertung_erstvorstellung_", subtitle_extra="Eosinophile (log-Skala) nach Subkategorie – Erstvorstellung"
+        )
+        graphs.generate_sunburst_chart(
+            df_dedup_erst, dir1_erstvorstellung, current_date_str, today_str, subcats,
+            prefix="auswertung_erstvorstellung_", subtitle_extra="Eosinophilen-Status nach Erkrankungsuntergruppe – Erstvorstellung"
+        )
             
         # ---------------------------------------------------------------------
         # AUSWERTUNG 2: Bestimmungsrate
@@ -678,9 +755,9 @@ def main():
             save_json([], os.path.join(dir2, "fhir_eos_bestimmungsrate_tabelle.json"))
             
         # ---------------------------------------------------------------------
-        # AUSWERTUNG 3: Durchgängig erhöht
+        # AUSWERTUNG 3: Durchgängig erhöht (Schwellen 90% und 50%)
         # ---------------------------------------------------------------------
-        logging.info("  -> Processing Auswertung 3 (Durchgängig erhöht)...")
+        logging.info("  -> Processing Auswertung 3 (Durchgängig erhöht - 90% & 50%)...")
         df_patient_eos_profile = df_all_cases_processed[df_all_cases_processed['max_eo'].notna()].copy()
         
         if not df_patient_eos_profile.empty:
@@ -691,84 +768,132 @@ def main():
             ).reset_index()
             
             patient_stats['Pct_Elevated'] = patient_stats['Elevated_Measurements'] / patient_stats['Total_Measurements'] * 100
-            patient_stats['Consistently_Elevated'] = np.where(
+            patient_stats['Consistently_Elevated_90'] = np.where(
                 patient_stats['Pct_Elevated'] >= 90.0,
                 "Durchgängig erhöht (>=90%)",
                 "Nicht durchgängig erhöht (<90%)"
             )
+            patient_stats['Consistently_Elevated_50'] = np.where(
+                patient_stats['Pct_Elevated'] >= 50.0,
+                "Durchgängig erhöht (>=50%)",
+                "Nicht durchgängig erhöht (<50%)"
+            )
+            # Legacy column
+            patient_stats['Consistently_Elevated'] = patient_stats['Consistently_Elevated_90']
             
-            cons_count = int(sum(patient_stats['Consistently_Elevated'] == "Durchgängig erhöht (>=90%)"))
             total_pat_with_eos = int(len(patient_stats))
-            cons_pct = cons_count / total_pat_with_eos * 100 if total_pat_with_eos > 0 else 0.0
             
-            cons_subset = patient_stats[patient_stats['Consistently_Elevated'] == "Durchgängig erhöht (>=90%)"]
-            non_subset = patient_stats[patient_stats['Consistently_Elevated'] == "Nicht durchgängig erhöht (<90%)"]
-            
-            median_tests_cons = float(cons_subset['Total_Measurements'].median()) if not cons_subset.empty else 0.0
-            median_tests_non = float(non_subset['Total_Measurements'].median()) if not non_subset.empty else 0.0
-            
+            # 90% stats
+            cons_count_90 = int(sum(patient_stats['Consistently_Elevated_90'] == "Durchgängig erhöht (>=90%)"))
+            cons_pct_90 = (cons_count_90 / total_pat_with_eos * 100) if total_pat_with_eos > 0 else 0.0
+            cons_subset_90 = patient_stats[patient_stats['Consistently_Elevated_90'] == "Durchgängig erhöht (>=90%)"]
+            non_subset_90 = patient_stats[patient_stats['Consistently_Elevated_90'] == "Nicht durchgängig erhöht (<90%)"]
+            median_tests_cons_90 = float(cons_subset_90['Total_Measurements'].median()) if not cons_subset_90.empty else 0.0
+            median_tests_non_90 = float(non_subset_90['Total_Measurements'].median()) if not non_subset_90.empty else 0.0
+
+            # 50% stats
+            cons_count_50 = int(sum(patient_stats['Consistently_Elevated_50'] == "Durchgängig erhöht (>=50%)"))
+            cons_pct_50 = (cons_count_50 / total_pat_with_eos * 100) if total_pat_with_eos > 0 else 0.0
+            cons_subset_50 = patient_stats[patient_stats['Consistently_Elevated_50'] == "Durchgängig erhöht (>=50%)"]
+            non_subset_50 = patient_stats[patient_stats['Consistently_Elevated_50'] == "Nicht durchgängig erhöht (<50%)"]
+            median_tests_cons_50 = float(cons_subset_50['Total_Measurements'].median()) if not cons_subset_50.empty else 0.0
+            median_tests_non_50 = float(non_subset_50['Total_Measurements'].median()) if not non_subset_50.empty else 0.0
+
             # Save Report TXT & calculate cohort details
             report_content = f"""=== BERICHT: DURCHGÄNGIG ERHÖHTE EOSINOPHILE ===
 Delta-Stand: {today_str}
 
 Anzahl Patienten mit mindestens 1 Eos-Messung: {total_pat_with_eos}
-Davon durchgängig erhöht (in >=90% der Messungen > {eos_threshold}): {cons_count} ({cons_pct:.2f}%)
 
---- Anzahl Messungen pro Patient (Mediane) ---
-Gruppe 'Durchgängig erhöht': {median_tests_cons} Messungen pro Patient
-Gruppe 'Nicht durchgängig erhöht': {median_tests_non} Messungen pro Patient
+--- SCHWELLE >= 90% ---
+Davon durchgängig erhöht (in >=90% der Messungen > {eos_threshold}): {cons_count_90} ({cons_pct_90:.2f}%)
+  Gruppe 'Durchgängig erhöht (>=90%)': {median_tests_cons_90} Messungen pro Patient (Mediane)
+  Gruppe 'Nicht durchgängig erhöht (<90%)': {median_tests_non_90} Messungen pro Patient (Mediane)
+
+--- SCHWELLE >= 50% ---
+Davon durchgängig erhöht (in >=50% der Messungen > {eos_threshold}): {cons_count_50} ({cons_pct_50:.2f}%)
+  Gruppe 'Durchgängig erhöht (>=50%)': {median_tests_cons_50} Messungen pro Patient (Mediane)
+  Gruppe 'Nicht durchgängig erhöht (<50%)': {median_tests_non_50} Messungen pro Patient (Mediane)
 
 === KOHORTEN-DETAILS ===
 
 """
             cohorts_to_plot = ["COPD-exklusiv", "Asthma-exklusiv", "Overlap"]
-            cohort_details = {}
+            cohort_details_90 = {}
+            cohort_details_50 = {}
             
             for coh in cohorts_to_plot:
                 df_coh = patient_stats[patient_stats['Cohort'] == coh]
                 coh_total = len(df_coh)
-                coh_cons = int(sum(df_coh['Consistently_Elevated'] == "Durchgängig erhöht (>=90%)"))
-                coh_pct = (coh_cons / coh_total * 100) if coh_total > 0 else 0.0
                 
-                cons_coh_subset = df_coh[df_coh['Consistently_Elevated'] == "Durchgängig erhöht (>=90%)"]
-                non_coh_subset = df_coh[df_coh['Consistently_Elevated'] == "Nicht durchgängig erhöht (<90%)"]
-                
-                median_tests_cons_coh = float(cons_coh_subset['Total_Measurements'].median()) if not cons_coh_subset.empty else 0.0
-                median_tests_non_coh = float(non_coh_subset['Total_Measurements'].median()) if not non_coh_subset.empty else 0.0
-                
+                # 90%
+                coh_cons_90 = int(sum(df_coh['Consistently_Elevated_90'] == "Durchgängig erhöht (>=90%)"))
+                coh_pct_90 = (coh_cons_90 / coh_total * 100) if coh_total > 0 else 0.0
+                cons_coh_subset_90 = df_coh[df_coh['Consistently_Elevated_90'] == "Durchgängig erhöht (>=90%)"]
+                non_coh_subset_90 = df_coh[df_coh['Consistently_Elevated_90'] == "Nicht durchgängig erhöht (<90%)"]
+                median_tests_cons_coh_90 = float(cons_coh_subset_90['Total_Measurements'].median()) if not cons_coh_subset_90.empty else 0.0
+                median_tests_non_coh_90 = float(non_coh_subset_90['Total_Measurements'].median()) if not non_coh_subset_90.empty else 0.0
+
+                # 50%
+                coh_cons_50 = int(sum(df_coh['Consistently_Elevated_50'] == "Durchgängig erhöht (>=50%)"))
+                coh_pct_50 = (coh_cons_50 / coh_total * 100) if coh_total > 0 else 0.0
+                cons_coh_subset_50 = df_coh[df_coh['Consistently_Elevated_50'] == "Durchgängig erhöht (>=50%)"]
+                non_coh_subset_50 = df_coh[df_coh['Consistently_Elevated_50'] == "Nicht durchgängig erhöht (<50%)"]
+                median_tests_cons_coh_50 = float(cons_coh_subset_50['Total_Measurements'].median()) if not cons_coh_subset_50.empty else 0.0
+                median_tests_non_coh_50 = float(non_coh_subset_50['Total_Measurements'].median()) if not non_coh_subset_50.empty else 0.0
+
                 report_content += f"""Kohorte: {coh}
   Patienten mit Eos: {coh_total}
-  Davon durchgängig erhöht (>=90%): {coh_cons} ({coh_pct:.2f}%)
-  Mediane Anzahl Messungen (durchgängig erhöht): {median_tests_cons_coh}
-  Mediane Anzahl Messungen (nicht durchg. erhöht): {median_tests_non_coh}
+  [>=90% Schwelle] Davon durchgängig erhöht: {coh_cons_90} ({coh_pct_90:.2f}%)
+    Mediane Messungen (durchg. erhöht >=90%): {median_tests_cons_coh_90} | (nicht durchg.): {median_tests_non_coh_90}
+  [>=50% Schwelle] Davon durchgängig erhöht: {coh_cons_50} ({coh_pct_50:.2f}%)
+    Mediane Messungen (durchg. erhöht >=50%): {median_tests_cons_coh_50} | (nicht durchg.): {median_tests_non_coh_50}
 
 """
-                cohort_details[coh] = {
+                cohort_details_90[coh] = {
                     "total_patients": coh_total,
-                    "consistently_elevated_count": coh_cons,
-                    "consistently_elevated_percent": round(coh_pct, 2),
-                    "median_measurements_consistently_elevated": median_tests_cons_coh,
-                    "median_measurements_not_consistently_elevated": median_tests_non_coh
+                    "consistently_elevated_count": coh_cons_90,
+                    "consistently_elevated_percent": round(coh_pct_90, 2),
+                    "median_measurements_consistently_elevated": median_tests_cons_coh_90,
+                    "median_measurements_not_consistently_elevated": median_tests_non_coh_90
+                }
+                cohort_details_50[coh] = {
+                    "total_patients": coh_total,
+                    "consistently_elevated_count": coh_cons_50,
+                    "consistently_elevated_percent": round(coh_pct_50, 2),
+                    "median_measurements_consistently_elevated": median_tests_cons_coh_50,
+                    "median_measurements_not_consistently_elevated": median_tests_non_coh_50
                 }
 
             # Save JSON
             result_durchgaengig = {
                 "unit_eos": str(unit_eos),
                 "total_patients_with_eos": total_pat_with_eos,
-                "consistently_elevated_count": cons_count,
-                "consistently_elevated_percent": round(cons_pct, 2),
-                "median_measurements_consistently_elevated": median_tests_cons,
-                "median_measurements_not_consistently_elevated": median_tests_non,
                 "threshold_used": eos_threshold,
-                "cohort_details": cohort_details
+                "threshold_90pct": {
+                    "consistently_elevated_count": cons_count_90,
+                    "consistently_elevated_percent": round(cons_pct_90, 2),
+                    "median_measurements_consistently_elevated": median_tests_cons_90,
+                    "median_measurements_not_consistently_elevated": median_tests_non_90,
+                    "cohort_details": cohort_details_90
+                },
+                "threshold_50pct": {
+                    "consistently_elevated_count": cons_count_50,
+                    "consistently_elevated_percent": round(cons_pct_50, 2),
+                    "median_measurements_consistently_elevated": median_tests_cons_50,
+                    "median_measurements_not_consistently_elevated": median_tests_non_50,
+                    "cohort_details": cohort_details_50
+                },
+                "legacy_90pct_cohort_details": cohort_details_90
             }
             save_json(result_durchgaengig, os.path.join(dir3, "fhir_eos_durchgaengig_erhoeht.json"))
             
             with open(os.path.join(dir3, "durchgaengig_erhoeht_bericht.txt"), "w", encoding="utf-8") as f:
                 f.write(report_content)
                 
-            # Generate graph using graphs.py module
-            graphs.generate_durchgaengig_pie(patient_stats, dir3, current_date_str, today_str, eos_threshold, unit_eos)
+            # Generate pie charts for 90% and 50%
+            graphs.generate_durchgaengig_pie(patient_stats, dir3, current_date_str, today_str, eos_threshold, unit_eos, pct_threshold=90)
+            graphs.generate_durchgaengig_pie(patient_stats, dir3, current_date_str, today_str, eos_threshold, unit_eos, pct_threshold=50)
         else:
             save_json({}, os.path.join(dir3, "fhir_eos_durchgaengig_erhoeht.json"))
             with open(os.path.join(dir3, "durchgaengig_erhoeht_bericht.txt"), "w", encoding="utf-8") as f:

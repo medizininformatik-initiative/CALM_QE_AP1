@@ -12,7 +12,7 @@ SUB_COLORS = {
     "Overlap": "#E9573F"
 }
 
-def generate_boxplot_3groups(df_dedup_3, output_dir, date_str, today_str, p_val_3g, unit_eos):
+def generate_boxplot_3groups(df_dedup_3, output_dir, date_str, today_str, p_val_3g, unit_eos, prefix="auswertung_1", subtitle_extra=""):
     """
     Generates the interactive Plotly HTML boxplot for the 3 main groups.
     """
@@ -31,20 +31,21 @@ def generate_boxplot_3groups(df_dedup_3, output_dir, date_str, today_str, p_val_
                 marker_color=THREE_GROUP_COLORS[g],
                 showlegend=False
             ))
+        sub_text = f"{subtitle_extra}<br><sup>p-Wert (Kruskal-Wallis): {p_str} | Stand: {today_str}</sup>" if subtitle_extra else f"Eosinophile (log-Skala)<br><sup>p-Wert (Kruskal-Wallis): {p_str} | Stand: {today_str}</sup>"
         fig1.update_layout(
             title={
-                'text': f"Eosinophile (log-Skala)<br><sup>p-Wert (Kruskal-Wallis): {p_str} | Stand: {today_str}</sup>",
+                'text': sub_text,
                 'y': 0.95, 'x': 0.5, 'xanchor': 'center', 'yanchor': 'top', 'font': {'size': 20}
             },
             xaxis={'title': "", 'tickfont': {'size': 16}},
             yaxis={'title': f"Eos [{unit_eos}]", 'type': "log", 'dtick': 1, 'tickfont': {'size': 16}},
             margin={'t': 150, 'b': 50, 'l': 50, 'r': 50}
         )
-        fig1.write_html(os.path.join(output_dir, f"auswertung_1fhir_boxplot_eos_log_faelle_{date_str}.html"), include_plotlyjs="cdn")
+        fig1.write_html(os.path.join(output_dir, f"{prefix}fhir_boxplot_eos_log_faelle_{date_str}.html"), include_plotlyjs="cdn")
     except Exception as e:
-        print(f"Error creating Boxplot of 3 groups: {e}")
+        print(f"Error creating Boxplot of 3 groups ({prefix}): {e}")
 
-def generate_boxplot_subcategories(df_dedup_3, output_dir, date_str, today_str, p_val_sub, subcats, unit_eos):
+def generate_boxplot_subcategories(df_dedup_3, output_dir, date_str, today_str, p_val_sub, subcats, unit_eos, prefix="auswertung_1", subtitle_extra=""):
     """
     Generates the interactive Plotly HTML boxplot for subcategories.
     """
@@ -63,20 +64,21 @@ def generate_boxplot_subcategories(df_dedup_3, output_dir, date_str, today_str, 
                 marker_color=SUB_COLORS[sc],
                 showlegend=False
             ))
+        sub_text = f"{subtitle_extra}<br><sup>p-Wert (Kruskal-Wallis): {p_sub_str} | Stand: {today_str}</sup>" if subtitle_extra else f"Eosinophile (log-Skala) nach Subkategorie<br><sup>p-Wert (Kruskal-Wallis): {p_sub_str} | Stand: {today_str}</sup>"
         fig2.update_layout(
             title={
-                'text': f"Eosinophile (log-Skala) nach Subkategorie (Fall-Ebene)<br><sup>p-Wert (Kruskal-Wallis): {p_sub_str} | Stand: {today_str}</sup>",
+                'text': sub_text,
                 'y': 0.95, 'x': 0.5, 'xanchor': 'center', 'yanchor': 'top', 'font': {'size': 20}
             },
             xaxis={'title': "", 'tickangle': -15, 'tickfont': {'size': 18}},
             yaxis={'title': f"Eos [{unit_eos}]", 'type': "log", 'dtick': 1, 'tickfont': {'size': 16}},
             margin={'t': 160, 'b': 160, 'l': 140, 'r': 50}
         )
-        fig2.write_html(os.path.join(output_dir, f"auswertung_1fhir_boxplot_eos_log_subkategorie_faelle_{date_str}.html"), include_plotlyjs="cdn")
+        fig2.write_html(os.path.join(output_dir, f"{prefix}fhir_boxplot_eos_log_subkategorie_faelle_{date_str}.html"), include_plotlyjs="cdn")
     except Exception as e:
-        print(f"Error creating Boxplot of subcategories: {e}")
+        print(f"Error creating Boxplot of subcategories ({prefix}): {e}")
 
-def generate_sunburst_chart(df_dedup_3, output_dir, date_str, today_str, subcats):
+def generate_sunburst_chart(df_dedup_3, output_dir, date_str, today_str, subcats, prefix="auswertung_1", subtitle_extra=""):
     """
     Generates the nested sunburst chart of Eos status.
     """
@@ -130,13 +132,14 @@ def generate_sunburst_chart(df_dedup_3, output_dir, date_str, today_str, subcats
             marker=dict(colors=colors_list),
             textfont=dict(size=20)
         ))
+        title_t = f"{subtitle_extra}<br><sup>Stand: {today_str}</sup>" if subtitle_extra else f"Eosinophilen-Status nach Erkrankungsuntergruppe<br><sup>Stand: {today_str}</sup>"
         fig_sun.update_layout(
-            title={'text': f"Eosinophilen-Status nach Erkrankungsuntergruppe (Fall-Ebene)<br><sup>Stand: {today_str}</sup>", 'y': 0.95, 'x': 0.5, 'xanchor': 'center', 'yanchor': 'top', 'font': {'size': 20}},
+            title={'text': title_t, 'y': 0.95, 'x': 0.5, 'xanchor': 'center', 'yanchor': 'top', 'font': {'size': 20}},
             margin=dict(t=150, b=50, l=50, r=50)
         )
-        fig_sun.write_html(os.path.join(output_dir, f"auswertung_1fhir_eos_sunburst_subkategorie_combined_faelle_{date_str}.html"), include_plotlyjs="cdn")
+        fig_sun.write_html(os.path.join(output_dir, f"{prefix}fhir_eos_sunburst_subkategorie_combined_faelle_{date_str}.html"), include_plotlyjs="cdn")
     except Exception as e:
-        print(f"Error creating Sunburst chart: {e}")
+        print(f"Error creating Sunburst chart ({prefix}): {e}")
 
 def generate_bestimmungsrate_chart(df_leitlinie_rate, output_dir, date_str, today_str, subcats):
     """
@@ -166,12 +169,13 @@ def generate_bestimmungsrate_chart(df_leitlinie_rate, output_dir, date_str, toda
     except Exception as e:
         print(f"Error creating line plot for Bestimmungsrate: {e}")
 
-def generate_durchgaengig_pie(patient_stats, output_dir, date_str, today_str, eos_threshold, unit_eos):
+def generate_durchgaengig_pie(patient_stats, output_dir, date_str, today_str, eos_threshold, unit_eos, pct_threshold=90):
     """
-    Generates three cohort-specific Pie charts showing the proportion of consistently elevated patients.
+    Generates three cohort-specific Pie charts showing the proportion of consistently elevated patients (>=90% or >=50%).
     """
     cohorts_to_plot = ["COPD-exklusiv", "Asthma-exklusiv", "Overlap"]
     cohort_names_clean = {"COPD-exklusiv": "copd", "Asthma-exklusiv": "asthma", "Overlap": "overlap"}
+    col_name = f"Consistently_Elevated_{pct_threshold}" if f"Consistently_Elevated_{pct_threshold}" in patient_stats.columns else "Consistently_Elevated"
     
     for coh in cohorts_to_plot:
         try:
@@ -179,7 +183,7 @@ def generate_durchgaengig_pie(patient_stats, output_dir, date_str, today_str, eo
             if df_coh.empty:
                 continue
                 
-            pie_counts = df_coh['Consistently_Elevated'].value_counts()
+            pie_counts = df_coh[col_name].value_counts()
             labels_p = list(pie_counts.index)
             values_p = list(pie_counts.values)
             colors_pie_list = ["#8CC152" if "Nicht" in l else "#DA4453" for l in labels_p]
@@ -189,10 +193,12 @@ def generate_durchgaengig_pie(patient_stats, output_dir, date_str, today_str, eo
                 marker=dict(colors=colors_pie_list), textfont=dict(size=20)
             ))
             fig_pie.update_layout(
-                title={'text': f"Anteil der Patienten mit durchgängig erhöhten Eosinophilen (>{eos_threshold})<br><sup>{coh} | Bedingung: In >=90% aller Eos-Messungen > {eos_threshold} {unit_eos} | Stand: {today_str}</sup>", 'y': 0.95, 'x': 0.5, 'xanchor': 'center', 'yanchor': 'top', 'font': {'size': 20}},
+                title={'text': f"Anteil der Patienten mit durchgängig erhöhten Eosinophilen (>{eos_threshold})<br><sup>{coh} | Bedingung: In >={pct_threshold}% aller Eos-Messungen > {eos_threshold} {unit_eos} | Stand: {today_str}</sup>", 'y': 0.95, 'x': 0.5, 'xanchor': 'center', 'yanchor': 'top', 'font': {'size': 20}},
                 margin=dict(t=150, b=50, l=50, r=50)
             )
-            fig_name = f"fhir_eos_durchgaengig_erhoeht_anteil_{cohort_names_clean[coh]}_{date_str}.html"
+            # Write file with percentage tag
+            fig_name = f"fhir_eos_durchgaengig_erhoeht_anteil_{cohort_names_clean[coh]}_{pct_threshold}pct_{date_str}.html"
             fig_pie.write_html(os.path.join(output_dir, fig_name), include_plotlyjs="cdn")
         except Exception as e:
-            print(f"Error creating Pie chart for {coh}: {e}")
+            print(f"Error creating Pie chart for {coh} ({pct_threshold}%): {e}")
+
