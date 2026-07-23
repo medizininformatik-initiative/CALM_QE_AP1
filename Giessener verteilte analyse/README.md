@@ -151,7 +151,7 @@ python analyze_fhir_distributed.py
 
 All results are saved under the `results/` directory:
 
-### Folder `1_behandlungsindikation/`
+### Folder `1_behandlungsindikation/` (Patient-based – Highest Eos Value)
 
 | File                                                                       | Content                                                                                                                      |
 | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
@@ -159,6 +159,15 @@ All results are saved under the `results/` directory:
 | `auswertung_1fhir_boxplot_eos_log_faelle_<DATE>.html`                    | Interactive boxplot: Eosinophils (log scale) for the 3 main groups                                                           |
 | `auswertung_1fhir_boxplot_eos_log_subkategorie_faelle_<DATE>.html`       | Interactive boxplot: Eosinophils by COPD subcategory                                                                         |
 | `auswertung_1fhir_eos_sunburst_subkategorie_combined_faelle_<DATE>.html` | Interactive sunburst chart: Eosinophil status per subcategory                                                                |
+
+### Folder `1_erstvorstellung/` (Patient-based – First Presentation)
+
+| File                                                                                     | Content                                                                                                                      |
+| ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `auswertung_erstvorstellung.json`                                                       | Descriptive statistics + Kruskal-Wallis p-values + sunburst distribution for initial patient admission                       |
+| `auswertung_erstvorstellung_fhir_boxplot_eos_log_faelle_<DATE>.html`                    | Interactive boxplot: Eosinophils (log scale) at initial presentation for the 3 main groups                                   |
+| `auswertung_erstvorstellung_fhir_boxplot_eos_log_subkategorie_faelle_<DATE>.html`       | Interactive boxplot: Eosinophils by subcategory at initial presentation                                                      |
+| `auswertung_erstvorstellung_fhir_eos_sunburst_subkategorie_combined_faelle_<DATE>.html` | Interactive sunburst chart: Eosinophil status per subcategory at initial presentation                                        |
 
 ### Folder `2_bestimmungsrate/`
 
@@ -169,13 +178,16 @@ All results are saved under the `results/` directory:
 
 ### Folder `3_durchgaengig_erhoeht/`
 
-| File                                                 | Content                                                                                                          |
-| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `fhir_eos_durchgaengig_erhoeht.json`               | Share of patients with persistently elevated Eosinophils (≥90% of measurements above threshold), including unit |
-| `durchgaengig_erhoeht_bericht.txt`                 | Plain-text summary report                                                                                        |
-| `fhir_eos_durchgaengig_erhoeht_anteil_copd_<DATE>.html` | Interactive pie chart: share of persistently elevated patients (COPD-only) |
-| `fhir_eos_durchgaengig_erhoeht_anteil_asthma_<DATE>.html` | Interactive pie chart: share of persistently elevated patients (Asthma-only) |
-| `fhir_eos_durchgaengig_erhoeht_anteil_overlap_<DATE>.html` | Interactive pie chart: share of persistently elevated patients (Overlap) |
+| File                                                           | Content                                                                                                          |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `fhir_eos_durchgaengig_erhoeht.json`                         | Share of patients with persistently elevated Eosinophils (both ≥90% and ≥50% thresholds), including cohort details |
+| `durchgaengig_erhoeht_bericht.txt`                           | Plain-text summary report for both ≥90% and ≥50% thresholds                                                        |
+| `fhir_eos_durchgaengig_erhoeht_anteil_copd_90pct_<DATE>.html`   | Interactive pie chart: share of persistently elevated patients (COPD-only, ≥90% threshold)                       |
+| `fhir_eos_durchgaengig_erhoeht_anteil_asthma_90pct_<DATE>.html` | Interactive pie chart: share of persistently elevated patients (Asthma-only, ≥90% threshold)                     |
+| `fhir_eos_durchgaengig_erhoeht_anteil_overlap_90pct_<DATE>.html`| Interactive pie chart: share of persistently elevated patients (Overlap, ≥90% threshold)                         |
+| `fhir_eos_durchgaengig_erhoeht_anteil_copd_50pct_<DATE>.html`   | Interactive pie chart: share of persistently elevated patients (COPD-only, ≥50% threshold)                       |
+| `fhir_eos_durchgaengig_erhoeht_anteil_asthma_50pct_<DATE>.html` | Interactive pie chart: share of persistently elevated patients (Asthma-only, ≥50% threshold)                     |
+| `fhir_eos_durchgaengig_erhoeht_anteil_overlap_50pct_<DATE>.html`| Interactive pie chart: share of persistently elevated patients (Overlap, ≥50% threshold)                         |
 
 ### Directly in `results/`
 
