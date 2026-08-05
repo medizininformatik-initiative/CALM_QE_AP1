@@ -151,32 +151,32 @@ python analyze_fhir_distributed.py
 
 All results are saved under the `results/` directory:
 
-### Folder `1_behandlungsindikation/` (Patient-based – Highest Eos Value)
+### Folder `1_erstvorstellung/` (Auswertung 1: Patient-based – First Presentation)
 
-| File                                                                       | Content                                                                                                                      |
-| -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `auswertung1_indikation.json`                                            | Descriptive statistics (median, mean, min, max, quartiles) + Kruskal-Wallis p-values + sunburst distribution + detected unit |
-| `auswertung_1fhir_boxplot_eos_log_faelle_<DATE>.html`                    | Interactive boxplot: Eosinophils (log scale) for the 3 main groups                                                           |
-| `auswertung_1fhir_boxplot_eos_log_subkategorie_faelle_<DATE>.html`       | Interactive boxplot: Eosinophils by COPD subcategory                                                                         |
-| `auswertung_1fhir_eos_sunburst_subkategorie_combined_faelle_<DATE>.html` | Interactive sunburst chart: Eosinophil status per subcategory                                                                |
+| File                                                                                      | Content                                                                                                                      |
+| ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `auswertung1_erstvorstellung.json`                                                       | Descriptive statistics + Kruskal-Wallis p-values + sunburst distribution for initial patient admission                       |
+| `auswertung1_erstvorstellung_fhir_boxplot_eos_log_faelle_<DATE>.html`                    | Interactive boxplot: Eosinophils (log scale) at initial presentation for the 3 main groups                                   |
+| `auswertung1_erstvorstellung_fhir_boxplot_eos_log_subkategorie_faelle_<DATE>.html`       | Interactive boxplot: Eosinophils by subcategory at initial presentation                                                      |
+| `auswertung1_erstvorstellung_fhir_eos_sunburst_subkategorie_combined_faelle_<DATE>.html` | Interactive sunburst chart: Eosinophil status per subcategory at initial presentation                                        |
 
-### Folder `1_erstvorstellung/` (Patient-based – First Presentation)
+### Folder `2_behandlungsindikation/` (Auswertung 2: Patient-based – Max Eos / Indication)
 
-| File                                                                                     | Content                                                                                                                      |
-| ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `auswertung_erstvorstellung.json`                                                       | Descriptive statistics + Kruskal-Wallis p-values + sunburst distribution for initial patient admission                       |
-| `auswertung_erstvorstellung_fhir_boxplot_eos_log_faelle_<DATE>.html`                    | Interactive boxplot: Eosinophils (log scale) at initial presentation for the 3 main groups                                   |
-| `auswertung_erstvorstellung_fhir_boxplot_eos_log_subkategorie_faelle_<DATE>.html`       | Interactive boxplot: Eosinophils by subcategory at initial presentation                                                      |
-| `auswertung_erstvorstellung_fhir_eos_sunburst_subkategorie_combined_faelle_<DATE>.html` | Interactive sunburst chart: Eosinophil status per subcategory at initial presentation                                        |
+| File                                                                        | Content                                                                                                                      |
+| --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `auswertung2_indikation.json`                                               | Descriptive statistics (median, mean, min, max, quartiles) + Kruskal-Wallis p-values + sunburst distribution + detected unit |
+| `auswertung2_indikation_fhir_boxplot_eos_log_faelle_<DATE>.html`           | Interactive boxplot: Eosinophils (log scale) for the 3 main groups                                                           |
+| `auswertung2_indikation_fhir_boxplot_eos_log_subkategorie_faelle_<DATE>.html`  | Interactive boxplot: Eosinophils by COPD subcategory                                                                         |
+| `auswertung2_indikation_fhir_eos_sunburst_subkategorie_combined_faelle_<DATE>.html` | Interactive sunburst chart: Eosinophil status per subcategory                                                                |
 
-### Folder `2_bestimmungsrate/`
+### Folder `3_bestimmungsrate/` (Auswertung 3: Determination Rate Over Time)
 
 | File                                                    | Content                                                                               |
 | ------------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | `fhir_eos_bestimmungsrate_tabelle.json`               | Annual Eosinophil determination rates (2018–present) per subcategory, including unit |
 | `fhir_eos_bestimmungsrate_verlauf_Linien_<DATE>.html` | Interactive line chart: determination rate over time                                  |
 
-### Folder `3_durchgaengig_erhoeht/`
+### Folder `4_durchgaengig_erhoeht/` (Auswertung 4: Persistently Elevated Eosinophils)
 
 | File                                                           | Content                                                                                                          |
 | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
@@ -188,6 +188,15 @@ All results are saved under the `results/` directory:
 | `fhir_eos_durchgaengig_erhoeht_anteil_copd_50pct_<DATE>.html`   | Interactive pie chart: share of persistently elevated patients (COPD-only, ≥50% threshold)                       |
 | `fhir_eos_durchgaengig_erhoeht_anteil_asthma_50pct_<DATE>.html` | Interactive pie chart: share of persistently elevated patients (Asthma-only, ≥50% threshold)                     |
 | `fhir_eos_durchgaengig_erhoeht_anteil_overlap_50pct_<DATE>.html`| Interactive pie chart: share of persistently elevated patients (Overlap, ≥50% threshold)                         |
+
+### Folder `5_letztvorstellung/` (Auswertung 5: Patient-based – Last Presentation)
+
+| File                                                                                       | Content                                                                                                                      |
+| ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| `auswertung5_letztvorstellung.json`                                                       | Descriptive statistics + Kruskal-Wallis p-values + sunburst distribution for last patient admission                          |
+| `auswertung5_letztvorstellung_fhir_boxplot_eos_log_faelle_<DATE>.html`                    | Interactive boxplot: Eosinophils (log scale) at last presentation for the 3 main groups                                      |
+| `auswertung5_letztvorstellung_fhir_boxplot_eos_log_subkategorie_faelle_<DATE>.html`       | Interactive boxplot: Eosinophils by subcategory at last presentation                                                         |
+| `auswertung5_letztvorstellung_fhir_eos_sunburst_subkategorie_combined_faelle_<DATE>.html` | Interactive sunburst chart: Eosinophil status per subcategory at last presentation                                           |
 
 ### Directly in `results/`
 

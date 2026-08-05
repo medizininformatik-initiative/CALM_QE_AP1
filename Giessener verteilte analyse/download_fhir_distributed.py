@@ -97,11 +97,60 @@ def fetch_all_pages(url):
 
     return resources
 
-def fetch_resources(resource_type, code_list=None):
-    """Fetch resources, batching the code list if it is large to avoid URI too long errors."""
+def extract_patient_ids_from_conditions():
+    """Extract unique Patient IDs from condition.csv."""
+    condition_csv = os.path.join(OUTPUT_DIR, "condition.csv")
+    if not os.path.exists(condition_csv):
+        return []
+
+    patient_ids = set()
+    with open(condition_csv, encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            ref = row.get("(1) subject.reference", "")
+            if ref:
+                pid = ref.replace("Patient/", "").strip()
+                if pid:
+                    patient_ids.add(pid)
+
+    patient_ids = sorted(list(patient_ids))
+    logging.info(f"Extracted {len(patient_ids)} unique cohort patient IDs from condition.csv")
+    return patient_ids
+
+def fetch_resources(resource_type, code_list=None, patient_ids=None):
+    """Fetch resources, batching by code list and/or patient IDs to keep queries targeted and fast."""
+    
+    # If patient_ids are provided, filter queries by cohort patients
+    if patient_ids:
+        PATIENT_BATCH_SIZE = 50
+        patient_chunks = [patient_ids[i:i + PATIENT_BATCH_SIZE] for i in range(0, len(patient_ids), PATIENT_BATCH_SIZE)]
+        all_resources = []
+
+        logging.info(f"Fetching {resource_type} for {len(patient_ids)} cohort patient(s) in {len(patient_chunks)} patient batch(es)...")
+
+        for p_idx, p_chunk in enumerate(patient_chunks, 1):
+            patient_str = ",".join(p_chunk)
+
+            if code_list:
+                # Batch codes if more than 50
+                CODE_BATCH_SIZE = 50
+                code_chunks = [code_list[i:i + CODE_BATCH_SIZE] for i in range(0, len(code_list), CODE_BATCH_SIZE)]
+                for c_idx, c_chunk in enumerate(code_chunks, 1):
+                    code_str = ",".join(c_chunk)
+                    url = f"{FHIR_BASE_URL}/{resource_type}?patient={patient_str}&code={code_str}&_count=200"
+                    logging.info(f"  Patient Batch {p_idx}/{len(patient_chunks)} | Code Batch {c_idx}/{len(code_chunks)} ...")
+                    all_resources.extend(fetch_all_pages(url))
+            else:
+                url = f"{FHIR_BASE_URL}/{resource_type}?patient={patient_str}&_count=200"
+                logging.info(f"  Patient Batch {p_idx}/{len(patient_chunks)} ...")
+                all_resources.extend(fetch_all_pages(url))
+
+        logging.info(f"Loaded {len(all_resources)} {resource_type} entries total for cohort patients")
+        return all_resources
+
+    # Fallback if no patient_ids provided
     if not code_list:
         url = f"{FHIR_BASE_URL}/{resource_type}?_count=200"
-        logging.info(f"Fetching {resource_type} (no code filter) ...")
+        logging.info(f"Fetching {resource_type} (no code/patient filter) ...")
         return fetch_all_pages(url)
 
     BATCH_SIZE = 50
@@ -165,7 +214,19 @@ def main():
     logging.info(f"Target Directory: {OUTPUT_DIR}/")
     logging.info("=" * 60)
 
-    for resource_type, codes in RESOURCES.items():
+    # 1. Download Condition first to establish cohort
+    condition_csv = os.path.join(OUTPUT_DIR, "condition.csv")
+    if not os.path.exists(condition_csv):
+        logging.info("Loading Condition (establishing cohort)...")
+        save_csv(fetch_resources("Condition", code_list=condition_codes), condition_csv)
+    else:
+        logging.info("Skipping Condition (File already exists: condition.csv)")
+
+    # Extract Patient IDs from Condition cohort
+    patient_ids = extract_patient_ids_from_conditions()
+
+    # 2. Download remaining resources filtered by cohort patient_ids
+    for resource_type in ["Observation", "MedicationRequest", "Medication"]:
         csv_name = f"{resource_type[0].lower()}{resource_type[1:]}.csv"
         filepath = os.path.join(OUTPUT_DIR, csv_name)
 
@@ -174,8 +235,15 @@ def main():
             continue
 
         logging.info(f"Loading {resource_type}...")
-        save_csv(fetch_resources(resource_type, code_list=codes), filepath)
+        codes = RESOURCES.get(resource_type)
+        
+        # Filter Observation and MedicationRequest by cohort patient_ids
+        if resource_type in ["Observation", "MedicationRequest"] and patient_ids:
+            save_csv(fetch_resources(resource_type, code_list=codes, patient_ids=patient_ids), filepath)
+        else:
+            save_csv(fetch_resources(resource_type, code_list=codes), filepath)
 
+    # 3. Download Encounters
     fetch_encounters_from_condition_csv()
 
     logging.info("=" * 60)
@@ -185,3 +253,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

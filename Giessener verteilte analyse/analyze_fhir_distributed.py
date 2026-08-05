@@ -444,15 +444,18 @@ def main():
     # -------------------------------------------------------------------------
     logging.info("\n=== Running Integrated Evaluations ===")
     
-    # Create subdirectories for output
-    dir1 = os.path.join(OUTPUT_PATH, "1_behandlungsindikation")
+    # Create subdirectories for output (Numbered 1-5 according to specification)
     dir1_erstvorstellung = os.path.join(OUTPUT_PATH, "1_erstvorstellung")
-    dir2 = os.path.join(OUTPUT_PATH, "2_bestimmungsrate")
-    dir3 = os.path.join(OUTPUT_PATH, "3_durchgaengig_erhoeht")
-    os.makedirs(dir1, exist_ok=True)
+    dir2_indikation = os.path.join(OUTPUT_PATH, "2_behandlungsindikation")
+    dir3_bestimmungsrate = os.path.join(OUTPUT_PATH, "3_bestimmungsrate")
+    dir4_durchgaengig = os.path.join(OUTPUT_PATH, "4_durchgaengig_erhoeht")
+    dir5_letztvorstellung = os.path.join(OUTPUT_PATH, "5_letztvorstellung")
+
     os.makedirs(dir1_erstvorstellung, exist_ok=True)
-    os.makedirs(dir2, exist_ok=True)
-    os.makedirs(dir3, exist_ok=True)
+    os.makedirs(dir2_indikation, exist_ok=True)
+    os.makedirs(dir3_bestimmungsrate, exist_ok=True)
+    os.makedirs(dir4_durchgaengig, exist_ok=True)
+    os.makedirs(dir5_letztvorstellung, exist_ok=True)
     
     import datetime
     current_date_str = datetime.date.today().strftime("%Y_%m_%d")
@@ -460,11 +463,12 @@ def main():
     
     if hauptdiagnose_icd.empty or len(valid_patients) == 0:
         logging.warning("  WARNING: No valid patients or cases for evaluations. Creating empty results.")
-        save_json({}, os.path.join(dir1, "auswertung1_indikation.json"))
-        save_json({}, os.path.join(dir1_erstvorstellung, "auswertung_erstvorstellung.json"))
-        save_json([], os.path.join(dir2, "fhir_eos_bestimmungsrate_tabelle.json"))
-        save_json({}, os.path.join(dir3, "fhir_eos_durchgaengig_erhoeht.json"))
-        with open(os.path.join(dir3, "durchgaengig_erhoeht_bericht.txt"), "w", encoding="utf-8") as f:
+        save_json({}, os.path.join(dir1_erstvorstellung, "auswertung1_erstvorstellung.json"))
+        save_json({}, os.path.join(dir2_indikation, "auswertung2_indikation.json"))
+        save_json([], os.path.join(dir3_bestimmungsrate, "fhir_eos_bestimmungsrate_tabelle.json"))
+        save_json({}, os.path.join(dir4_durchgaengig, "fhir_eos_durchgaengig_erhoeht.json"))
+        save_json({}, os.path.join(dir5_letztvorstellung, "auswertung5_letztvorstellung.json"))
+        with open(os.path.join(dir4_durchgaengig, "durchgaengig_erhoeht_bericht.txt"), "w", encoding="utf-8") as f:
             f.write("No data available.")
     else:
         # Define Case_Group for each case
@@ -583,9 +587,85 @@ def main():
         eos_cats = ["Ohne Messung", f"Normal (<={eos_threshold})", f"Erhöht (>{eos_threshold})"]
 
         # ---------------------------------------------------------------------
-        # AUSWERTUNG 1: Behandlungsindikation (Patientenbasiert Absolut / Max Eos)
+        # AUSWERTUNG 1: Erstvorstellung (Patientenbasiert - Erste Vorstellung)
         # ---------------------------------------------------------------------
-        logging.info("  -> Processing Auswertung 1 (Behandlungsindikation - Max Eos)...")
+        logging.info("  -> Processing Auswertung 1 (Erstvorstellung - Erste Vorstellung)...")
+        df_dedup_erst = df_all_cases_processed.sort_values(
+            by=['admission_dt'],
+            ascending=[True]
+        ).drop_duplicates(subset=['patient_id'], keep='first').copy()
+
+        p_val_3g_erst = safe_kruskal(df_dedup_erst, 'max_eo', 'Three_Group_Category', exclude_groups=['Andere'])
+        p_val_sub_erst = safe_kruskal(df_dedup_erst, 'max_eo', 'Subcategory', exclude_groups=['COPD Sonstige', 'Andere'])
+
+        stats_3g_erst = {}
+        for g, sub in df_dedup_erst[df_dedup_erst['Three_Group_Category'] != 'Andere'].groupby('Three_Group_Category'):
+            vals = sub['max_eo'].dropna()
+            stats_3g_erst[g] = {
+                "count": int(len(vals)),
+                "mean": round(float(vals.mean()), 4) if not vals.empty else None,
+                "median": round(float(vals.median()), 4) if not vals.empty else None,
+                "min": round(float(vals.min()), 4) if not vals.empty else None,
+                "max": round(float(vals.max()), 4) if not vals.empty else None
+            }
+
+        stats_sub_erst = {}
+        for g, sub in df_dedup_erst[~df_dedup_erst['Subcategory'].isin(['COPD Sonstige', 'Andere'])].groupby('Subcategory'):
+            vals = sub['max_eo'].dropna()
+            stats_sub_erst[g] = {
+                "count": int(len(vals)),
+                "mean": round(float(vals.mean()), 4) if not vals.empty else None,
+                "median": round(float(vals.median()), 4) if not vals.empty else None,
+                "min": round(float(vals.min()), 4) if not vals.empty else None,
+                "max": round(float(vals.max()), 4) if not vals.empty else None
+            }
+
+        df_dedup_erst['Eos_Category'] = df_dedup_erst['max_eo'].apply(categorize_eos)
+        df_sun_erst = df_dedup_erst[df_dedup_erst['Subcategory'].isin(subcats)].copy()
+
+        sun_dist_erst = {}
+        for sc in subcats:
+            df_sc = df_sun_erst[df_sun_erst['Subcategory'] == sc]
+            n_sc = len(df_sc)
+            sun_dist_erst[sc] = {
+                "total_cases": int(n_sc),
+                "categories": {}
+            }
+            for ec in eos_cats:
+                n_ec = len(df_sc[df_sc['Eos_Category'] == ec])
+                pct = (n_ec / n_sc * 100) if n_sc > 0 else 0
+                sun_dist_erst[sc]["categories"][ec] = {
+                    "count": int(n_ec),
+                    "percent": round(pct, 2)
+                }
+
+        auswertung1_erstvorstellung = {
+            "unit_eos": str(unit_eos),
+            "kruskal_p_3groups": p_val_3g_erst,
+            "kruskal_p_subcategories": p_val_sub_erst,
+            "descriptive_stats_3groups": stats_3g_erst,
+            "descriptive_stats_subcategories": stats_sub_erst,
+            "sunburst_distribution": sun_dist_erst
+        }
+        save_json(auswertung1_erstvorstellung, os.path.join(dir1_erstvorstellung, "auswertung1_erstvorstellung.json"))
+
+        graphs.generate_boxplot_3groups(
+            df_dedup_erst, dir1_erstvorstellung, current_date_str, today_str, p_val_3g_erst, unit_eos,
+            prefix="auswertung1_erstvorstellung_", subtitle_extra="Eosinophile (log-Skala) – Erstvorstellung"
+        )
+        graphs.generate_boxplot_subcategories(
+            df_dedup_erst, dir1_erstvorstellung, current_date_str, today_str, p_val_sub_erst, subcats, unit_eos,
+            prefix="auswertung1_erstvorstellung_", subtitle_extra="Eosinophile (log-Skala) nach Subkategorie – Erstvorstellung"
+        )
+        graphs.generate_sunburst_chart(
+            df_dedup_erst, dir1_erstvorstellung, current_date_str, today_str, subcats,
+            prefix="auswertung1_erstvorstellung_", subtitle_extra="Eosinophilen-Status nach Erkrankungsuntergruppe – Erstvorstellung"
+        )
+
+        # ---------------------------------------------------------------------
+        # AUSWERTUNG 2: Behandlungsindikation (Patientenbasiert Absolut / Max Eos)
+        # ---------------------------------------------------------------------
+        logging.info("  -> Processing Auswertung 2 (Behandlungsindikation - Max Eos)...")
         df_all_cases_processed['has_eo'] = df_all_cases_processed['max_eo'].notna()
         df_dedup_3 = df_all_cases_processed.sort_values(
             by=['has_eo', 'max_eo', 'admission_dt'],
@@ -636,7 +716,7 @@ def main():
                     "percent": round(pct, 2)
                 }
                 
-        auswertung1_indikation = {
+        auswertung2_indikation = {
             "unit_eos": str(unit_eos),
             "kruskal_p_3groups": p_val_3g,
             "kruskal_p_subcategories": p_val_sub,
@@ -644,92 +724,16 @@ def main():
             "descriptive_stats_subcategories": stats_sub,
             "sunburst_distribution": sun_dist
         }
-        save_json(auswertung1_indikation, os.path.join(dir1, "auswertung1_indikation.json"))
+        save_json(auswertung2_indikation, os.path.join(dir2_indikation, "auswertung2_indikation.json"))
         
-        graphs.generate_boxplot_3groups(df_dedup_3, dir1, current_date_str, today_str, p_val_3g, unit_eos, prefix="auswertung_1")
-        graphs.generate_boxplot_subcategories(df_dedup_3, dir1, current_date_str, today_str, p_val_sub, subcats, unit_eos, prefix="auswertung_1")
-        graphs.generate_sunburst_chart(df_dedup_3, dir1, current_date_str, today_str, subcats, prefix="auswertung_1")
+        graphs.generate_boxplot_3groups(df_dedup_3, dir2_indikation, current_date_str, today_str, p_val_3g, unit_eos, prefix="auswertung2_indikation_")
+        graphs.generate_boxplot_subcategories(df_dedup_3, dir2_indikation, current_date_str, today_str, p_val_sub, subcats, unit_eos, prefix="auswertung2_indikation_")
+        graphs.generate_sunburst_chart(df_dedup_3, dir2_indikation, current_date_str, today_str, subcats, prefix="auswertung2_indikation_")
 
         # ---------------------------------------------------------------------
-        # AUSWERTUNG ERSTVORSTELLUNG (Patientenbasiert - Erste Vorstellung)
+        # AUSWERTUNG 3: Bestimmungsrate
         # ---------------------------------------------------------------------
-        logging.info("  -> Processing Auswertung Erstvorstellung (Erste Vorstellung)...")
-        df_dedup_erst = df_all_cases_processed.sort_values(
-            by=['admission_dt'],
-            ascending=[True]
-        ).drop_duplicates(subset=['patient_id'], keep='first').copy()
-
-        p_val_3g_erst = safe_kruskal(df_dedup_erst, 'max_eo', 'Three_Group_Category', exclude_groups=['Andere'])
-        p_val_sub_erst = safe_kruskal(df_dedup_erst, 'max_eo', 'Subcategory', exclude_groups=['COPD Sonstige', 'Andere'])
-
-        stats_3g_erst = {}
-        for g, sub in df_dedup_erst[df_dedup_erst['Three_Group_Category'] != 'Andere'].groupby('Three_Group_Category'):
-            vals = sub['max_eo'].dropna()
-            stats_3g_erst[g] = {
-                "count": int(len(vals)),
-                "mean": round(float(vals.mean()), 4) if not vals.empty else None,
-                "median": round(float(vals.median()), 4) if not vals.empty else None,
-                "min": round(float(vals.min()), 4) if not vals.empty else None,
-                "max": round(float(vals.max()), 4) if not vals.empty else None
-            }
-
-        stats_sub_erst = {}
-        for g, sub in df_dedup_erst[~df_dedup_erst['Subcategory'].isin(['COPD Sonstige', 'Andere'])].groupby('Subcategory'):
-            vals = sub['max_eo'].dropna()
-            stats_sub_erst[g] = {
-                "count": int(len(vals)),
-                "mean": round(float(vals.mean()), 4) if not vals.empty else None,
-                "median": round(float(vals.median()), 4) if not vals.empty else None,
-                "min": round(float(vals.min()), 4) if not vals.empty else None,
-                "max": round(float(vals.max()), 4) if not vals.empty else None
-            }
-
-        df_dedup_erst['Eos_Category'] = df_dedup_erst['max_eo'].apply(categorize_eos)
-        df_sun_erst = df_dedup_erst[df_dedup_erst['Subcategory'].isin(subcats)].copy()
-
-        sun_dist_erst = {}
-        for sc in subcats:
-            df_sc = df_sun_erst[df_sun_erst['Subcategory'] == sc]
-            n_sc = len(df_sc)
-            sun_dist_erst[sc] = {
-                "total_cases": int(n_sc),
-                "categories": {}
-            }
-            for ec in eos_cats:
-                n_ec = len(df_sc[df_sc['Eos_Category'] == ec])
-                pct = (n_ec / n_sc * 100) if n_sc > 0 else 0
-                sun_dist_erst[sc]["categories"][ec] = {
-                    "count": int(n_ec),
-                    "percent": round(pct, 2)
-                }
-
-        auswertung_erstvorstellung = {
-            "unit_eos": str(unit_eos),
-            "kruskal_p_3groups": p_val_3g_erst,
-            "kruskal_p_subcategories": p_val_sub_erst,
-            "descriptive_stats_3groups": stats_3g_erst,
-            "descriptive_stats_subcategories": stats_sub_erst,
-            "sunburst_distribution": sun_dist_erst
-        }
-        save_json(auswertung_erstvorstellung, os.path.join(dir1_erstvorstellung, "auswertung_erstvorstellung.json"))
-
-        graphs.generate_boxplot_3groups(
-            df_dedup_erst, dir1_erstvorstellung, current_date_str, today_str, p_val_3g_erst, unit_eos,
-            prefix="auswertung_erstvorstellung_", subtitle_extra="Eosinophile (log-Skala) – Erstvorstellung"
-        )
-        graphs.generate_boxplot_subcategories(
-            df_dedup_erst, dir1_erstvorstellung, current_date_str, today_str, p_val_sub_erst, subcats, unit_eos,
-            prefix="auswertung_erstvorstellung_", subtitle_extra="Eosinophile (log-Skala) nach Subkategorie – Erstvorstellung"
-        )
-        graphs.generate_sunburst_chart(
-            df_dedup_erst, dir1_erstvorstellung, current_date_str, today_str, subcats,
-            prefix="auswertung_erstvorstellung_", subtitle_extra="Eosinophilen-Status nach Erkrankungsuntergruppe – Erstvorstellung"
-        )
-            
-        # ---------------------------------------------------------------------
-        # AUSWERTUNG 2: Bestimmungsrate
-        # ---------------------------------------------------------------------
-        logging.info("  -> Processing Auswertung 2 (Bestimmungsrate)...")
+        logging.info("  -> Processing Auswertung 3 (Bestimmungsrate)...")
         df_leitlinie = df_all_cases_processed[
             ~df_all_cases_processed['Subcategory'].isin(['COPD Sonstige', 'Andere'])
         ].copy()
@@ -747,17 +751,17 @@ def main():
             df_leitlinie_rate['unit_eos'] = str(unit_eos)
             
             rate_table_records = df_leitlinie_rate.to_dict(orient='records')
-            save_json(rate_table_records, os.path.join(dir2, "fhir_eos_bestimmungsrate_tabelle.json"))
+            save_json(rate_table_records, os.path.join(dir3_bestimmungsrate, "fhir_eos_bestimmungsrate_tabelle.json"))
             
             # Generate graph using graphs.py module
-            graphs.generate_bestimmungsrate_chart(df_leitlinie_rate, dir2, current_date_str, today_str, subcats)
+            graphs.generate_bestimmungsrate_chart(df_leitlinie_rate, dir3_bestimmungsrate, current_date_str, today_str, subcats)
         else:
-            save_json([], os.path.join(dir2, "fhir_eos_bestimmungsrate_tabelle.json"))
+            save_json([], os.path.join(dir3_bestimmungsrate, "fhir_eos_bestimmungsrate_tabelle.json"))
             
         # ---------------------------------------------------------------------
-        # AUSWERTUNG 3: Durchgängig erhöht (Schwellen 90% und 50%)
+        # AUSWERTUNG 4: Durchgängig erhöht (Schwellen 90% und 50%)
         # ---------------------------------------------------------------------
-        logging.info("  -> Processing Auswertung 3 (Durchgängig erhöht - 90% & 50%)...")
+        logging.info("  -> Processing Auswertung 4 (Durchgängig erhöht - 90% & 50%)...")
         df_patient_eos_profile = df_all_cases_processed[df_all_cases_processed['max_eo'].notna()].copy()
         
         if not df_patient_eos_profile.empty:
@@ -886,18 +890,119 @@ Davon durchgängig erhöht (in >=50% der Messungen > {eos_threshold}): {cons_cou
                 },
                 "legacy_90pct_cohort_details": cohort_details_90
             }
-            save_json(result_durchgaengig, os.path.join(dir3, "fhir_eos_durchgaengig_erhoeht.json"))
+            save_json(result_durchgaengig, os.path.join(dir4_durchgaengig, "fhir_eos_durchgaengig_erhoeht.json"))
             
-            with open(os.path.join(dir3, "durchgaengig_erhoeht_bericht.txt"), "w", encoding="utf-8") as f:
+            with open(os.path.join(dir4_durchgaengig, "durchgaengig_erhoeht_bericht.txt"), "w", encoding="utf-8") as f:
                 f.write(report_content)
                 
             # Generate pie charts for 90% and 50%
-            graphs.generate_durchgaengig_pie(patient_stats, dir3, current_date_str, today_str, eos_threshold, unit_eos, pct_threshold=90)
-            graphs.generate_durchgaengig_pie(patient_stats, dir3, current_date_str, today_str, eos_threshold, unit_eos, pct_threshold=50)
+            graphs.generate_durchgaengig_pie(patient_stats, dir4_durchgaengig, current_date_str, today_str, eos_threshold, unit_eos, pct_threshold=90)
+            graphs.generate_durchgaengig_pie(patient_stats, dir4_durchgaengig, current_date_str, today_str, eos_threshold, unit_eos, pct_threshold=50)
         else:
-            save_json({}, os.path.join(dir3, "fhir_eos_durchgaengig_erhoeht.json"))
-            with open(os.path.join(dir3, "durchgaengig_erhoeht_bericht.txt"), "w", encoding="utf-8") as f:
+            save_json({}, os.path.join(dir4_durchgaengig, "fhir_eos_durchgaengig_erhoeht.json"))
+            with open(os.path.join(dir4_durchgaengig, "durchgaengig_erhoeht_bericht.txt"), "w", encoding="utf-8") as f:
                 f.write("No patients with Eosinophil measurements.")
+
+        # ---------------------------------------------------------------------
+        # AUSWERTUNG 5: Letztvorstellung (Letzte Vorstellung)
+        # ---------------------------------------------------------------------
+        logging.info("  -> Processing Auswertung 5 (Letztvorstellung - Letzte Vorstellung)...")
+        
+        # Determine exacerbation / infection stays for historical upgrade
+        exac_stays = df_all_cases_processed[
+            df_all_cases_processed['icd_code'].str.startswith('J44.1', na=False) |
+            df_all_cases_processed['icd_code'].str.startswith('J44.0', na=False)
+        ].sort_values(by=['admission_dt'], ascending=[False]).drop_duplicates(subset=['patient_id'], keep='first')
+        
+        exac_stays_lookup = exac_stays.set_index('patient_id')[['admission_dt', 'icd_code']].to_dict('index')
+
+        # Most recent stay (Letztvorstellung) per patient
+        df_dedup_letzt = df_all_cases_processed.sort_values(
+            by=['admission_dt'],
+            ascending=[False]
+        ).drop_duplicates(subset=['patient_id'], keep='first').copy()
+
+        # Apply Historical Upgrade logic for COPD J44.8/9
+        def apply_upgrade(row):
+            pid = row['patient_id']
+            sub = row['Subcategory']
+            if sub == "COPD J44.8/9 (Sonstige/Unspez.)" and pid in exac_stays_lookup:
+                upgrade_info = exac_stays_lookup[pid]
+                upg_icd = str(upgrade_info['icd_code'])
+                if upg_icd.startswith('J44.1'):
+                    return "COPD J44.1 (Exazerbation)"
+                elif upg_icd.startswith('J44.0'):
+                    return "COPD J44.0 (Infekt)"
+            return sub
+
+        df_dedup_letzt['Subcategory'] = df_dedup_letzt.apply(apply_upgrade, axis=1)
+
+        p_val_3g_letzt = safe_kruskal(df_dedup_letzt, 'max_eo', 'Three_Group_Category', exclude_groups=['Andere'])
+        p_val_sub_letzt = safe_kruskal(df_dedup_letzt, 'max_eo', 'Subcategory', exclude_groups=['COPD Sonstige', 'Andere'])
+
+        stats_3g_letzt = {}
+        for g, sub in df_dedup_letzt[df_dedup_letzt['Three_Group_Category'] != 'Andere'].groupby('Three_Group_Category'):
+            vals = sub['max_eo'].dropna()
+            stats_3g_letzt[g] = {
+                "count": int(len(vals)),
+                "mean": round(float(vals.mean()), 4) if not vals.empty else None,
+                "median": round(float(vals.median()), 4) if not vals.empty else None,
+                "min": round(float(vals.min()), 4) if not vals.empty else None,
+                "max": round(float(vals.max()), 4) if not vals.empty else None
+            }
+
+        stats_sub_letzt = {}
+        for g, sub in df_dedup_letzt[~df_dedup_letzt['Subcategory'].isin(['COPD Sonstige', 'Andere'])].groupby('Subcategory'):
+            vals = sub['max_eo'].dropna()
+            stats_sub_letzt[g] = {
+                "count": int(len(vals)),
+                "mean": round(float(vals.mean()), 4) if not vals.empty else None,
+                "median": round(float(vals.median()), 4) if not vals.empty else None,
+                "min": round(float(vals.min()), 4) if not vals.empty else None,
+                "max": round(float(vals.max()), 4) if not vals.empty else None
+            }
+
+        df_dedup_letzt['Eos_Category'] = df_dedup_letzt['max_eo'].apply(categorize_eos)
+        df_sun_letzt = df_dedup_letzt[df_dedup_letzt['Subcategory'].isin(subcats)].copy()
+
+        sun_dist_letzt = {}
+        for sc in subcats:
+            df_sc = df_sun_letzt[df_sun_letzt['Subcategory'] == sc]
+            n_sc = len(df_sc)
+            sun_dist_letzt[sc] = {
+                "total_cases": int(n_sc),
+                "categories": {}
+            }
+            for ec in eos_cats:
+                n_ec = len(df_sc[df_sc['Eos_Category'] == ec])
+                pct = (n_ec / n_sc * 100) if n_sc > 0 else 0
+                sun_dist_letzt[sc]["categories"][ec] = {
+                    "count": int(n_ec),
+                    "percent": round(pct, 2)
+                }
+
+        auswertung5_letztvorstellung = {
+            "unit_eos": str(unit_eos),
+            "kruskal_p_3groups": p_val_3g_letzt,
+            "kruskal_p_subcategories": p_val_sub_letzt,
+            "descriptive_stats_3groups": stats_3g_letzt,
+            "descriptive_stats_subcategories": stats_sub_letzt,
+            "sunburst_distribution": sun_dist_letzt
+        }
+        save_json(auswertung5_letztvorstellung, os.path.join(dir5_letztvorstellung, "auswertung5_letztvorstellung.json"))
+
+        graphs.generate_boxplot_3groups(
+            df_dedup_letzt, dir5_letztvorstellung, current_date_str, today_str, p_val_3g_letzt, unit_eos,
+            prefix="auswertung5_letztvorstellung_", subtitle_extra="Eosinophile (log-Skala) – Letztvorstellung"
+        )
+        graphs.generate_boxplot_subcategories(
+            df_dedup_letzt, dir5_letztvorstellung, current_date_str, today_str, p_val_sub_letzt, subcats, unit_eos,
+            prefix="auswertung5_letztvorstellung_", subtitle_extra="Eosinophile (log-Skala) nach Subkategorie – Letztvorstellung"
+        )
+        graphs.generate_sunburst_chart(
+            df_dedup_letzt, dir5_letztvorstellung, current_date_str, today_str, subcats,
+            prefix="auswertung5_letztvorstellung_", subtitle_extra="Eosinophilen-Status nach Erkrankungsuntergruppe – Letztvorstellung"
+        )
 
     # =============================================================================
     # PART 4: SAVE RESULTS
