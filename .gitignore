@@ -13,3 +13,12 @@ Output/
 
 # Misc
 doku.docx
+
+# Local environment / credentials
+.env
+
+# Python virtualenv
+.venv/
+
+# Local output
+source_data/

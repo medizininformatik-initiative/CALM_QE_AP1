@@ -22,13 +22,37 @@ def setup_logging(log_filename, log_dir="logs"):
         ]
     )
 
+def load_dotenv_vars(path=None):
+    """Read KEY=VALUE pairs from a .env file (values may be quoted). Existing env vars win."""
+    env = {}
+    if path is None:
+        path = next((p for p in (".env", os.path.join("..", ".env")) if os.path.exists(p)), ".env")
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if "=" in line and not line.startswith("#"):
+                    k, v = line.split("=", 1)
+                    env[k.strip()] = v.strip().strip('"').strip("'")
+    env.update({k: v for k, v in os.environ.items() if k.startswith("SHIP_")})
+    return env
+
 def load_config(config_file="config.json"):
     if not os.path.exists(config_file):
         logging.error(f"Configuration file {config_file} not found. Please create it.")
         sys.exit(1)
-    
+
     with open(config_file, "r", encoding="utf-8") as f:
-        return json.load(f)
+        config = json.load(f)
+
+    # SHIP (UK Essen): derive the FHIR base URL from .env so no site URL/credentials
+    # need to be stored in the tracked config file.
+    if config["fhir"].get("auth_type") == "ship":
+        env = load_dotenv_vars()
+        base = env.get("SHIP_BASE_URL", "").rstrip("/")
+        if base:
+            config["fhir"]["base_url"] = base if "/app/FHIR" in base else f"{base}/app/FHIR/r4"
+    return config
 
 def setup_auth(config):
     auth = None
@@ -49,6 +73,32 @@ def setup_auth(config):
             headers["Authorization"] = f"Bearer {token}"
         else:
             logging.error("Token auth selected but token is not configured properly.")
+            sys.exit(1)
+    elif auth_type == "ship":
+        # UK Essen SHIP: POST credentials to /app/Auth/login, use the returned
+        # shipToken cookie on every FHIR request. Credentials come from .env
+        # (SHIP_BASE_URL, SHIP_USERNAME, SHIP_PASSWORD), not from config.json.
+        env = load_dotenv_vars()
+        base = env.get("SHIP_BASE_URL", "").rstrip("/")
+        base = base.split("/app/FHIR")[0]
+        username = env.get("SHIP_USERNAME", "")
+        password = env.get("SHIP_PASSWORD", "")
+        if not base or not username or not password:
+            logging.error("SHIP auth selected but SHIP_BASE_URL/SHIP_USERNAME/SHIP_PASSWORD are missing (.env).")
+            sys.exit(1)
+        try:
+            session = requests.Session()
+            resp = session.post(f"{base}/app/Auth/login",
+                                data={"username": username, "password": password},
+                                allow_redirects=False, timeout=30)
+            token = session.cookies.get("shipToken")
+            if not token:
+                logging.error(f"SHIP login failed - no shipToken cookie received (HTTP {resp.status_code}).")
+                sys.exit(1)
+            headers["Cookie"] = f"shipToken={token}"
+            logging.info("Successfully authenticated with SHIP.")
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Failed to authenticate with SHIP: {e}")
             sys.exit(1)
     elif auth_type == "oauth2":
         oauth_cfg = config["fhir"].get("oauth2", {})

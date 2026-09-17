@@ -23,7 +23,7 @@ A fully containerized Python pipeline for standardized, multi-site analysis of i
 
 Before running the pipeline, fill in `config.json` with your site's FHIR server credentials.
 
-**Supported authentication types:** `basic`, `token`, `oauth2`
+**Supported authentication types:** `basic`, `token`, `oauth2`, `ship`
 
 ```json
 {
@@ -51,6 +51,30 @@ Before running the pipeline, fill in `config.json` with your site's FHIR server 
   }
 }
 ```
+
+### SHIP authentication (UK Essen)
+
+The SHIP FHIR gateway uses a cookie-based login instead of Basic/OAuth2. Set `"auth_type": "ship"` in `config.json` and put the credentials in a `.env` file next to the scripts (or in the repository root; `.env` is git-ignored):
+
+```
+SHIP_BASE_URL=https://ship.example.de     # FHIR endpoint /app/FHIR/r4 is appended automatically
+SHIP_USERNAME=...
+SHIP_PASSWORD=...
+```
+
+The scripts log in via `/app/Auth/login`, send the returned `shipToken` cookie with every request and re-authenticate automatically when the session expires. `base_url` in `config.json` is ignored in this mode.
+
+### Optional run settings (environment variables)
+
+| Variable | Effect |
+| --- | --- |
+| `CALMQE_YEAR_FROM` / `CALMQE_YEAR_TO` | Restrict the cohort (Condition `recorded-date`) to a year window, e.g. `2019` to now. `YEAR_TO` defaults to the current year. |
+| `CALMQE_MAX_PATIENTS` | Test/demo mode: keep only the first *n* cohort patients (prefers patients with a Hauptdiagnose). |
+| `CALMQE_SKIP_MEDS` | Skip the MedicationRequest/Medication download (slow on large cohorts; only feeds the medication analysis). |
+
+Example: `CALMQE_YEAR_FROM=2019 CALMQE_SKIP_MEDS=1 python download_fhir_distributed.py`
+
+Downloads are resumable: each patient batch is checkpointed under `data_calmqe_distributed/_chunks/`, so an interrupted run continues where it stopped.
 
 ---
 
