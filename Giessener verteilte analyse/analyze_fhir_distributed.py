@@ -165,8 +165,21 @@ def main():
     else:
         observation['patient_id'] = np.nan
 
-    if "(1.2) code.coding.code" in observation.columns:
-        observation['loinc_code'] = observation['(1.2) code.coding.code'].astype(str)
+    # Observations can carry multiple codings and sites order them differently
+    # (e.g. local code first, LOINC second - or vice versa). Prefer whichever
+    # slot contains a code from the configured analyte groups.
+    obs_code_cols = [c for c in observation.columns if c.endswith(') code.coding.code')]
+    known_codes = set(eosinophil_loincs) | set(ige_loincs) | set(weight_loincs)
+    if obs_code_cols:
+        loinc_code = pd.Series(np.nan, index=observation.index, dtype=object)
+        for c in obs_code_cols:
+            vals = observation[c].astype(str)
+            take = vals.isin(known_codes) & ~loinc_code.isin(known_codes)
+            loinc_code[take] = vals[take]
+        fallback = None
+        for c in obs_code_cols:
+            fallback = observation[c] if fallback is None else fallback.fillna(observation[c])
+        observation['loinc_code'] = loinc_code.fillna(fallback.astype(str))
     else:
         observation['loinc_code'] = np.nan
 
@@ -206,7 +219,26 @@ def main():
         diag_ref_cols = [c for c in encounter.columns if c.endswith('diagnosis.condition.reference')]
         
         if len(diag_ref_cols) == 0:
-            logging.warning("  WARNING: Encounter contains no diagnosis columns. Falling back to all diagnoses.")
+            # Some sites (e.g. UK Essen/SHIP) do not populate Encounter.diagnosis.
+            # There the primary diagnosis is marked on the Condition itself via
+            # category (e.g. "DRG-Hauptdiagnose", "Hauptdiagnose/therapie ...").
+            logging.warning("  WARNING: Encounter contains no diagnosis columns. Falling back to Condition.category 'Hauptdiagnose'.")
+            cat_cols = [c for c in condition.columns if c.endswith('category.coding.display')]
+            if cat_cols and '(1) encounter.reference' in condition.columns and '(1) id' in condition.columns:
+                is_haupt = pd.Series(False, index=condition.index)
+                for c in cat_cols:
+                    is_haupt |= condition[c].astype(str).str.contains('Hauptdiagnose', case=False, na=False)
+                haupt = condition[is_haupt]
+                if not haupt.empty:
+                    encounter_diag = pd.DataFrame({
+                        'encounter_id': haupt['(1) encounter.reference'].astype(str).str.replace('Encounter/', ''),
+                        'patient_id': haupt['(1) subject.reference'].astype(str).str.replace('Patient/', ''),
+                        'condition_ref': haupt['(1) id'].astype(str),
+                        'rank_value': 1.0,
+                    })
+                    encounter_diag = encounter_diag[encounter_diag['encounter_id'] != 'nan'].copy()
+                    encounter_diag['condition_id'] = encounter_diag['condition_ref']
+                    logging.info(f"  -> Fallback found {len(encounter_diag)} Hauptdiagnose entries via Condition.category.")
         else:
             slot_dfs = []
             for ref_col in diag_ref_cols:
