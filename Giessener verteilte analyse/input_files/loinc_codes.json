@@ -1767,6 +1767,26 @@
         {
             "code": "3141-9",
             "description": "Body weight Measured"
+        },
+        {
+            "code": "zEOS#",
+            "description": "Eosinophil count absolute in blood, routine Diff-BB (Essen Swisslab, maps LOINC 26449-9)"
+        },
+        {
+            "code": "zEOMA",
+            "description": "Eosinophil count absolute in blood, manual differential (Essen Swisslab, maps LOINC 26449-9)"
+        },
+        {
+            "code": "zIGES",
+            "description": "IgE total in serum (Essen Swisslab, maps LOINC 83102-4)"
+        },
+        {
+            "code": "zIGEV",
+            "description": "IgE total (Essen Swisslab, maps LOINC 83102-4)"
+        },
+        {
+            "code": "zIGEAI",
+            "description": "IgE total (Essen Swisslab, maps LOINC 83102-4)"
         }
     ]
 }
