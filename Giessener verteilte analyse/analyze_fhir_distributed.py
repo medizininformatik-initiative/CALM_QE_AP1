@@ -1,3 +1,5 @@
+import re
+
 import pandas as pd
 import numpy as np
 import scipy.stats as stats
@@ -18,6 +20,12 @@ config = load_config()
 DATA_PATH = config["analysis"]["output_dir"]
 OUTPUT_PATH = config["analysis"]["results_dir"]
 os.makedirs(OUTPUT_PATH, exist_ok=True)
+
+# Alternative flag for other sites
+ENABLE_ALTERNATIVE_PRIMARY_DX_EXTRACTION = True
+diagnosis_role_url = r"http://terminology.hl7.org/CodeSystem/diagnosis-role"
+icd_system_url = r"http://fhir.de/CodeSystem/bfarm/icd-10-gm"
+
 
 def load_asthma_copd_codes(filepath):
     """Load Asthma and COPD cohort ICD codes from JSON file."""
@@ -109,6 +117,111 @@ def load_loinc_groups(filepath):
             
     return eosinophil_loincs, ige_loincs, weight_loincs
 
+def alternative_main_diagnosis_definition(encounter, condition, diagnosis_role_url, icd_system_url, role_code):
+    """
+    This is an alternative way to extract main diagnosis using Chief complain principle.
+    Modality using ValueSet DiagnosisRole: Chief complain case (CC).
+
+     Reference:
+     https://www.medizininformatik-initiative.de/Kerndatensatz/KDS_Basis_2026/site/de/ValueSet-mii-vs-fall-diagnosis-use.html
+     https://hl7.org/fhir/R4/valueset-diagnosis-role.html
+    """
+    logging.info("  -> Extracting primary diagnoses using alternative way using Chief complain principle...")
+    temporal_output_columns = ["encounter_id", "patient_id", "condition_ref", "icd_code"]
+
+    if encounter.empty or condition.empty:
+        logging.warning("encounter.csv or condition.csv data is empty; alternative logic extraction skipped.")
+        return pd.DataFrame(columns=temporal_output_columns)
+
+    # ----initial helpers to clean data -----------------------------------------------------------
+    def search_columns_for(df, field):
+        found = {}
+        for col in df.columns:
+            match = re.fullmatch(rf"\(([\d.]+)\) {re.escape(field)}", col)
+            if match:
+                found[match.group(1)] = col
+        return found
+
+    def single_column(df, field):
+        found = list(search_columns_for(df, field).values())
+        if len(found) != 1:
+            raise ValueError(f"Expected exactly one '(n) {field}' column; found {found}")
+        return found[0]
+
+    def clean_string(series):
+        return series.astype("string").str.strip()
+
+    def same_url(series, url):
+        return clean_string(series).str.rstrip("/").eq(url.rstrip("/")).fillna(False)
+
+    def resource_id(series, resource):
+        s = clean_string(series)
+        return s.str.extract(rf"(?:^|/){resource}/([^/?#]+)", expand=False).fillna(s)
+
+    # ---- step 1. Chief-Complain (CC) code entries in Encounter, each with its parent reference --------
+    encounter_id_col = single_column(encounter, "id")
+    patient_col = single_column(encounter, "subject.reference")
+
+    ref_cols = search_columns_for(encounter, "diagnosis.condition.reference")
+    system_cols = search_columns_for(encounter, "diagnosis.use.coding.system")
+
+    cc_parts = []
+    for index, code_col in search_columns_for(encounter, "diagnosis.use.coding.code").items():
+        ref_col = ref_cols.get(index.rpartition(".")[0])  # gets parent from numeric prefix
+        system_col = system_cols.get(index)
+
+        if ref_col is None or system_col is None:
+            continue
+
+        is_cc = clean_string(encounter[code_col]).str.upper().eq(role_code).fillna(False) & same_url(
+            encounter[system_col], diagnosis_role_url)
+
+        logging.info('is_cc',is_cc)
+
+        rows = encounter.loc[is_cc]
+        if rows.empty:
+            continue
+
+        cc_parts.append(pd.DataFrame({
+            "encounter_id": rows[encounter_id_col].astype("string"),
+            "patient_id": resource_id(rows[patient_col], "Patient"),
+            "condition_ref": rows[ref_col].astype("string"),
+            "condition_key": resource_id(rows[ref_col], "Condition"),
+        }))
+
+    if not cc_parts:
+        logging.warning("No %s entries found; check role code and diagnosis-role URL.", role_code)
+        return pd.DataFrame(columns=temporal_output_columns)
+    cc = pd.concat(cc_parts, ignore_index=True).drop_duplicates()
+
+    # ---- step 2. Include ICD-10 code per Condition -----------------------------------
+    condition_id_col = single_column(condition, "id")
+    icd_system_cols = search_columns_for(condition, "code.coding.system")
+
+    icd_parts = []
+    for index, code_col in search_columns_for(condition, "code.coding.code").items():
+        system_col = icd_system_cols.get(index)
+        if system_col is None:
+            continue
+        rows = condition.loc[same_url(condition[system_col], icd_system_url)]
+        if rows.empty:
+            continue
+        icd_parts.append(pd.DataFrame({
+            "condition_key": resource_id(rows[condition_id_col], "Condition"),
+            "icd_code": clean_string(rows[code_col]).str.upper(),
+        }))
+
+    if not icd_parts:
+        return pd.DataFrame(columns=temporal_output_columns)
+    condition_icd = pd.concat(icd_parts, ignore_index=True).dropna().drop_duplicates()
+
+    # ---- step 3. Join on Condition id -------------------------------------------
+    result = cc.merge(condition_icd, on="condition_key", how="left")
+    missing = int(result["icd_code"].isna().sum())
+    logging.info("CC entries: %d -- Entries without: %d", len(result), missing)
+
+    return result.dropna(subset=["icd_code"])[temporal_output_columns].drop_duplicates()
+
 def main():
     logging.info("=" * 60)
     logging.info("  DISTRIBUTED ANALYSIS – Asthma & COPD")
@@ -199,8 +312,20 @@ def main():
     # =============================================================================
     # COHORT DEFINITION: Primary Diagnosis
     # =============================================================================
-    logging.info("  -> Extracting primary diagnoses from Encounter (rank = 1)...")
-    
+
+    if ENABLE_ALTERNATIVE_PRIMARY_DX_EXTRACTION:
+        hauptdiagnose_icd = alternative_main_diagnosis_definition(
+            encounter,
+            condition,
+            diagnosis_role_url,
+            icd_system_url,
+            role_code='CC'
+        )
+        hauptdiagnose_icd.to_csv("haupt_diagnose_icd.csv", index=False)
+        no_primary_diagnoses = hauptdiagnose_icd.empty
+    else:
+        logging.info("  -> Extracting primary diagnoses from Encounter (rank = 1)...")
+
     encounter_diag = pd.DataFrame()
     if not encounter.empty:
         diag_ref_cols = [c for c in encounter.columns if c.endswith('diagnosis.condition.reference')]
@@ -225,24 +350,29 @@ def main():
                 encounter_diag = pd.concat(slot_dfs, ignore_index=True)
                 encounter_diag['condition_id'] = encounter_diag['condition_ref'].str.replace('Condition/', '')
 
-    condition_with_id = condition.copy()
-    if "(1) id" in condition_with_id.columns:
-        condition_with_id['condition_id'] = condition_with_id['(1) id'].astype(str)
-    else:
-        condition_with_id['condition_id'] = np.nan
+        condition_with_id = condition.copy()
+        if "(1) id" in condition_with_id.columns:
+            condition_with_id['condition_id'] = condition_with_id['(1) id'].astype(str)
+        else:
+            condition_with_id['condition_id'] = np.nan
+
+        no_primary_diagnoses = encounter_diag.empty
+        if not no_primary_diagnoses:
+            hauptdiagnose_icd = encounter_diag[encounter_diag['rank_value'] == 1].merge(
+            condition_with_id[['condition_id', 'icd_code']], on='condition_id', how='left')
+            hauptdiagnose_icd = hauptdiagnose_icd.dropna(subset=['icd_code'])
 
     valid_patients = []
-    if encounter_diag.empty:
+    if no_primary_diagnoses:
         logging.warning("  WARNING: Encounter diagnosis data is empty. No primary diagnoses can be resolved.")
         asthma_patients = pd.DataFrame(columns=['patient_id'])
         copd_patients = pd.DataFrame(columns=['patient_id'])
         hauptdiagnose_icd = pd.DataFrame()
     else:
-        hauptdiagnose_icd = encounter_diag[encounter_diag['rank_value'] == 1].merge(
-            condition_with_id[['condition_id', 'icd_code']], on='condition_id', how='left'
-        )
-        hauptdiagnose_icd = hauptdiagnose_icd.dropna(subset=['icd_code'])
-        
+        # hauptdiagnose_icd = encounter_diag[encounter_diag['rank_value'] == 1].merge(
+        #     condition_with_id[['condition_id', 'icd_code']], on='condition_id', how='left')
+        # hauptdiagnose_icd = hauptdiagnose_icd.dropna(subset=['icd_code'])
+        #
         # Get encounter start and end dates
         if not encounter.empty and '(1) id' in encounter.columns:
             cols_to_use = ['(1) id']

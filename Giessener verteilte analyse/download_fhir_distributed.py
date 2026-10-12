@@ -6,6 +6,7 @@ import time
 import logging
 import json
 from utils import setup_logging, load_config, setup_auth, save_csv
+from urllib.parse import quote
 
 # Setup Logging
 setup_logging("download.log")
@@ -182,26 +183,32 @@ def fetch_encounters_from_condition_csv():
 
     logging.info("Loading Encounters (via IDs from condition.csv)...")
 
-    encounter_ids = set()
+    encounter_val_identifier = set()
+    encounter_id = set()
     with open(condition_csv, encoding="utf-8") as f:
         for row in csv.DictReader(f):
             ref = row.get("(1) encounter.reference", "")
             if ref and ref.startswith("Encounter/"):
-                encounter_ids.add(ref.replace("Encounter/", "").strip())
+                encounter_id.add(ref.replace("Encounter/", "").strip())
 
-    encounter_ids = list(encounter_ids)
-    logging.info(f"Found {len(encounter_ids)} unique Encounter IDs in condition.csv")
+            identifier = row.get("(1) encounter.identifier.value", "")
+            if identifier:
+                encounter_val_identifier.add(identifier.strip())
 
-    if not encounter_ids: return
+    encounter_val_identifier = list(encounter_val_identifier)
+    logging.info(f"Found {len(encounter_id)} unique Encounter IDs with {len(encounter_val_identifier)} Identifiers in condition.csv")
+
+    if not encounter_val_identifier: return
 
     BATCH_SIZE = 100
     all_encounters = []
-    batches = [encounter_ids[i:i + BATCH_SIZE] for i in range(0, len(encounter_ids), BATCH_SIZE)]
+    batches = [encounter_val_identifier[i:i + BATCH_SIZE] for i in range(0, len(encounter_val_identifier), BATCH_SIZE)]
 
     logging.info(f"Downloading {len(batches)} batch(es) of max {BATCH_SIZE} encounters...")
-    for idx, batch in enumerate(batches, 1):
-        url = f"{FHIR_BASE_URL}/Encounter?_id={','.join(batch)}&_count={BATCH_SIZE}"
-        logging.info(f"Batch {idx}/{len(batches)}...")
+    for idx, id_identifier in enumerate(encounter_val_identifier, 1):
+        encoded_identifier = quote(id_identifier, safe="")
+        url = f"{FHIR_BASE_URL}/Encounter?identifier={encoded_identifier}&_count={BATCH_SIZE}"
+        logging.info(f"Identifier {idx}/{len(encounter_val_identifier)}...")
         all_encounters.extend(fetch_all_pages(url))
 
     logging.info(f"Total of {len(all_encounters)} Encounter entries loaded")
@@ -236,7 +243,7 @@ def main():
 
         logging.info(f"Loading {resource_type}...")
         codes = RESOURCES.get(resource_type)
-        
+
         # Filter Observation and MedicationRequest by cohort patient_ids
         if resource_type in ["Observation", "MedicationRequest"] and patient_ids:
             save_csv(fetch_resources(resource_type, code_list=codes, patient_ids=patient_ids), filepath)
