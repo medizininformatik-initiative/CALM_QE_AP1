@@ -216,13 +216,32 @@ class CsvStreamWriter:
 
         logging.info(f"Saved: {self.filepath} ({self.count} rows, {len(all_cols)} columns)")
 
-def safe_read_csv(filepath):
-    """Safely read a CSV file using pandas."""
-    if os.path.exists(filepath):
-        return pd.read_csv(filepath, low_memory=False)
-    else:
+def safe_read_csv(filepath, usecols=None):
+    """Safely read a CSV file using pandas, optionally filtering columns."""
+    if not os.path.exists(filepath):
         logging.warning(f"File {filepath} not found.")
         return pd.DataFrame()
+
+    if usecols is not None:
+        try:
+            # Read only header to find which columns actually exist in the CSV
+            header_cols = pd.read_csv(filepath, nrows=0).columns.tolist()
+            if callable(usecols):
+                matched = [c for c in header_cols if usecols(c)]
+            elif isinstance(usecols, (list, set, tuple)):
+                target_set = set(usecols)
+                matched = [c for c in header_cols if c in target_set]
+            else:
+                matched = None
+
+            if matched:
+                return pd.read_csv(filepath, usecols=matched, low_memory=False)
+            else:
+                logging.warning(f"None of requested columns matched in {filepath}. Reading all columns.")
+        except Exception as e:
+            logging.warning(f"Error filtering columns for {filepath}: {e}. Falling back to standard read.")
+
+    return pd.read_csv(filepath, low_memory=False)
 
 def save_json(data, filepath):
     """Safely save a dictionary as JSON."""

@@ -5,6 +5,7 @@ import os
 import sys
 import logging
 import json
+import gc
 from utils import setup_logging, load_config, safe_read_csv, save_json
 import graphs
 
@@ -119,11 +120,26 @@ def main():
     # PART 1: LOAD DATA
     # =============================================================================
     logging.info("[1/4] Loading data...")
-    observation = safe_read_csv(os.path.join(DATA_PATH, "observation.csv"))
-    condition = safe_read_csv(os.path.join(DATA_PATH, "condition.csv"))
-    medicationRequest = safe_read_csv(os.path.join(DATA_PATH, "medicationRequest.csv"))
-    medication = safe_read_csv(os.path.join(DATA_PATH, "medication.csv"))
-    encounter = safe_read_csv(os.path.join(DATA_PATH, "encounter.csv"))
+    observation = safe_read_csv(
+        os.path.join(DATA_PATH, "observation.csv"),
+        usecols=lambda c: c in {"(1) subject.reference", "(1) valueQuantity.value", "(1) valueQuantity.unit", "(1) effectiveDateTime"} or c.endswith("code.coding.code")
+    )
+    condition = safe_read_csv(
+        os.path.join(DATA_PATH, "condition.csv"),
+        usecols=lambda c: c in {"(1) id", "(1) subject.reference", "(1.1) code.coding.code", "(1) encounter.reference"} or c.endswith("code.coding.code") or c.endswith("category.coding.display")
+    )
+    encounter = safe_read_csv(
+        os.path.join(DATA_PATH, "encounter.csv"),
+        usecols=lambda c: c in {"(1) id", "(1) subject.reference", "(1) period.start", "(1) period.end"} or c.endswith("diagnosis.condition.reference") or c.endswith("diagnosis.rank")
+    )
+    medication = safe_read_csv(
+        os.path.join(DATA_PATH, "medication.csv"),
+        usecols=lambda c: c in {"(1) id", "(1.1) code.coding.code", "(1) code.text"} or c.endswith("code.coding.code")
+    )
+    medicationRequest = safe_read_csv(
+        os.path.join(DATA_PATH, "medicationRequest.csv"),
+        usecols=lambda c: c in {"(1) subject.reference", "(1) medicationReference.reference"} or c.endswith("dosageInstruction.route.coding.display")
+    )
     logging.info("  -> Data loaded.")
 
     if condition.empty or observation.empty:
@@ -251,7 +267,10 @@ def main():
                 temp_df = temp_df.dropna(subset=['condition_ref']).copy()
                 # filter out 'nan' strings
                 temp_df = temp_df[temp_df['condition_ref'] != 'nan']
-                slot_dfs.append(temp_df)
+                # Memory optimization: hauptdiagnose_icd strictly requires rank_value == 1 (primary diagnosis)
+                temp_df = temp_df[temp_df['rank_value'] == 1]
+                if not temp_df.empty:
+                    slot_dfs.append(temp_df)
             
             if slot_dfs:
                 encounter_diag = pd.concat(slot_dfs, ignore_index=True)
@@ -393,8 +412,22 @@ def main():
     if not medicationRequest.empty and not medication.empty:
         route_cols = [c for c in medicationRequest.columns if c.endswith('dosageInstruction.route.coding.display')]
         
-        mr_melt = medicationRequest.melt(id_vars=['patient_id', 'medication_id'], value_vars=route_cols, value_name='route_display')
-        inhalation_requests = mr_melt[mr_melt['route_display'] == 'Intrapulmonary use'].copy()
+        # Memory optimization: direct extraction without melting 1M+ rows
+        matching_rows = []
+        for col in route_cols:
+            sub = medicationRequest[medicationRequest[col] == 'Intrapulmonary use'][['patient_id', 'medication_id']].copy()
+            if not sub.empty:
+                sub['route_display'] = 'Intrapulmonary use'
+                matching_rows.append(sub)
+                
+        if matching_rows:
+            inhalation_requests = pd.concat(matching_rows, ignore_index=True).drop_duplicates()
+        else:
+            inhalation_requests = pd.DataFrame(columns=['patient_id', 'medication_id', 'route_display'])
+            
+        # Free medicationRequest from memory as it is not needed anywhere else
+        del medicationRequest
+        gc.collect()
         
         if not inhalation_requests.empty:
             inhalation_requests = inhalation_requests.merge(medication[['medication_id', 'atc_code', 'medication_display']], on='medication_id', how='left')

@@ -6,3 +6,4 @@ __pycache__/
 multisite_erklaerung.html
 *.tmp.jsonl
 .env
+measure_ram.py
