@@ -216,11 +216,14 @@ class CsvStreamWriter:
 
         logging.info(f"Saved: {self.filepath} ({self.count} rows, {len(all_cols)} columns)")
 
-def safe_read_csv(filepath, usecols=None):
-    """Safely read a CSV file using pandas, optionally filtering columns."""
+def safe_read_csv(filepath, usecols=None, chunksize=None):
+    """Safely read a CSV file using pandas, optionally filtering columns and reading in chunks."""
     if not os.path.exists(filepath):
         logging.warning(f"File {filepath} not found.")
-        return pd.DataFrame()
+        return pd.DataFrame() if chunksize is None else []
+
+    filename = os.path.basename(filepath)
+    logging.info(f"  -> Reading {filename}...")
 
     if usecols is not None:
         try:
@@ -235,13 +238,21 @@ def safe_read_csv(filepath, usecols=None):
                 matched = None
 
             if matched:
-                return pd.read_csv(filepath, usecols=matched, low_memory=False)
+                if chunksize:
+                    return pd.read_csv(filepath, usecols=matched, chunksize=chunksize, low_memory=False)
+                df = pd.read_csv(filepath, usecols=matched, low_memory=False)
+                logging.info(f"  -> {filename} loaded ({len(df)} rows, {len(df.columns)} cols).")
+                return df
             else:
                 logging.warning(f"None of requested columns matched in {filepath}. Reading all columns.")
         except Exception as e:
             logging.warning(f"Error filtering columns for {filepath}: {e}. Falling back to standard read.")
 
-    return pd.read_csv(filepath, low_memory=False)
+    if chunksize:
+        return pd.read_csv(filepath, chunksize=chunksize, low_memory=False)
+    df = pd.read_csv(filepath, low_memory=False)
+    logging.info(f"  -> {filename} loaded ({len(df)} rows, {len(df.columns)} cols).")
+    return df
 
 def save_json(data, filepath):
     """Safely save a dictionary as JSON."""

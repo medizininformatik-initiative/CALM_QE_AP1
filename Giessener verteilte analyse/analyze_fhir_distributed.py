@@ -116,37 +116,7 @@ def main():
     logging.info(f"  Data path: {DATA_PATH}")
     logging.info("=" * 60)
 
-    # =============================================================================
-    # PART 1: LOAD DATA
-    # =============================================================================
-    logging.info("[1/4] Loading data...")
-    observation = safe_read_csv(
-        os.path.join(DATA_PATH, "observation.csv"),
-        usecols=lambda c: c in {"(1) subject.reference", "(1) valueQuantity.value", "(1) valueQuantity.unit", "(1) effectiveDateTime"} or c.endswith("code.coding.code")
-    )
-    condition = safe_read_csv(
-        os.path.join(DATA_PATH, "condition.csv"),
-        usecols=lambda c: c in {"(1) id", "(1) subject.reference", "(1.1) code.coding.code", "(1) encounter.reference"} or c.endswith("code.coding.code") or c.endswith("category.coding.display")
-    )
-    encounter = safe_read_csv(
-        os.path.join(DATA_PATH, "encounter.csv"),
-        usecols=lambda c: c in {"(1) id", "(1) subject.reference", "(1) period.start", "(1) period.end"} or c.endswith("diagnosis.condition.reference") or c.endswith("diagnosis.rank")
-    )
-    medication = safe_read_csv(
-        os.path.join(DATA_PATH, "medication.csv"),
-        usecols=lambda c: c in {"(1) id", "(1.1) code.coding.code", "(1) code.text"} or c.endswith("code.coding.code")
-    )
-    medicationRequest = safe_read_csv(
-        os.path.join(DATA_PATH, "medicationRequest.csv"),
-        usecols=lambda c: c in {"(1) subject.reference", "(1) medicationReference.reference"} or c.endswith("dosageInstruction.route.coding.display")
-    )
-    logging.info("  -> Data loaded.")
-
-    if condition.empty or observation.empty:
-        logging.error("Essential data tables (condition/observation) are empty. Exiting.")
-        sys.exit(1)
-
-    # Load configurable code files
+    # Load configurable code files first so LOINC codes are available for streaming filters
     asthma_copd_file = config["analysis"].get("asthma_copd_codes_file")
     loinc_file = config["analysis"].get("loinc_codes_file")
 
@@ -158,6 +128,55 @@ def main():
     logging.info(f"Configured Eosinophil LOINC codes: {eosinophil_loincs}")
     logging.info(f"Configured IgE LOINC codes: {ige_loincs}")
     logging.info(f"Configured Weight LOINC codes: {weight_loincs}")
+
+    # =============================================================================
+    # PART 1: LOAD DATA
+    # =============================================================================
+    logging.info("[1/4] Loading data...")
+
+    logging.info("  -> Loading observation.csv (streaming in chunks)...")
+    known_loincs = set(str(c) for c in (eosinophil_loincs + ige_loincs + weight_loincs))
+    obs_path = os.path.join(DATA_PATH, "observation.csv")
+    obs_chunks = []
+    total_obs_rows = 0
+    obs_reader = safe_read_csv(
+        obs_path,
+        usecols=lambda c: c in {"(1) subject.reference", "(1) valueQuantity.value", "(1) valueQuantity.unit", "(1) effectiveDateTime"} or c.endswith("code.coding.code"),
+        chunksize=100000
+    )
+    for chunk in obs_reader:
+        total_obs_rows += len(chunk)
+        if known_loincs:
+            code_cols = [c for c in chunk.columns if c.endswith("code.coding.code")]
+            if code_cols:
+                mask = pd.Series(False, index=chunk.index)
+                for c in code_cols:
+                    mask |= chunk[c].astype(str).isin(known_loincs)
+                chunk = chunk[mask]
+        if not chunk.empty:
+            obs_chunks.append(chunk)
+
+    observation = pd.concat(obs_chunks, ignore_index=True) if obs_chunks else pd.DataFrame()
+    logging.info(f"  -> observation.csv: read {total_obs_rows} rows, kept {len(observation)} relevant LOINC rows.")
+
+    logging.info("  -> Loading condition.csv...")
+    condition = safe_read_csv(
+        os.path.join(DATA_PATH, "condition.csv"),
+        usecols=lambda c: c in {"(1) id", "(1) subject.reference", "(1.1) code.coding.code", "(1) encounter.reference"} or c.endswith("code.coding.code") or c.endswith("category.coding.display")
+    )
+    logging.info(f"  -> condition.csv loaded: {len(condition)} rows.")
+
+    logging.info("  -> Loading encounter.csv...")
+    encounter = safe_read_csv(
+        os.path.join(DATA_PATH, "encounter.csv"),
+        usecols=lambda c: c in {"(1) id", "(1) subject.reference", "(1) period.start", "(1) period.end"} or c.endswith("diagnosis.condition.reference") or c.endswith("diagnosis.rank")
+    )
+    logging.info(f"  -> encounter.csv loaded: {len(encounter)} rows.")
+    logging.info("  -> Core cohort data loaded successfully.")
+
+    if condition.empty or observation.empty:
+        logging.error("Essential data tables (condition/observation) are empty. Exiting.")
+        sys.exit(1)
 
     # =============================================================================
     # PART 2: PREPARE DATA
@@ -214,16 +233,7 @@ def main():
     else:
         observation['obs_dt'] = pd.NaT
 
-    # Medication
-    if not medication.empty:
-        medication['medication_id'] = medication['(1) id'] if "(1) id" in medication.columns else np.nan
-        medication['atc_code'] = medication['(1.1) code.coding.code'] if "(1.1) code.coding.code" in medication.columns else np.nan
-        medication['medication_display'] = medication['(1) code.text'] if "(1) code.text" in medication.columns else np.nan
-
-    # MedicationRequest
-    if not medicationRequest.empty:
-        medicationRequest['patient_id'] = medicationRequest['(1) subject.reference'].str.replace('Patient/', '') if "(1) subject.reference" in medicationRequest.columns else np.nan
-        medicationRequest['medication_id'] = medicationRequest['(1) medicationReference.reference'].str.replace('Medication/', '') if "(1) medicationReference.reference" in medicationRequest.columns else np.nan
+    # Medication and MedicationRequest are now loaded lazily in Analysis 2 to conserve RAM
 
     # =============================================================================
     # COHORT DEFINITION: Primary Diagnosis
@@ -318,6 +328,12 @@ def main():
         else:
             hauptdiagnose_icd['admission_str'] = pd.NaT
             hauptdiagnose_icd['discharge_str'] = pd.NaT
+
+        # Free encounter memory immediately
+        if 'encounter' in locals():
+            del encounter
+            gc.collect()
+            logging.info("  -> Encounter data processed and memory freed.")
             
         hauptdiagnose_icd['admission_dt'] = pd.to_datetime(hauptdiagnose_icd['admission_str'], errors='coerce', utc=True).dt.tz_localize(None)
         hauptdiagnose_icd['discharge_dt'] = pd.to_datetime(hauptdiagnose_icd['discharge_str'], errors='coerce', utc=True).dt.tz_localize(None)
@@ -409,27 +425,51 @@ def main():
     result_medications_asthma = []
     result_medications_copd = []
 
-    if not medicationRequest.empty and not medication.empty:
-        route_cols = [c for c in medicationRequest.columns if c.endswith('dosageInstruction.route.coding.display')]
-        
-        # Memory optimization: direct extraction without melting 1M+ rows
+    med_path = os.path.join(DATA_PATH, "medication.csv")
+    med_req_path = os.path.join(DATA_PATH, "medicationRequest.csv")
+
+    if os.path.exists(med_path) and os.path.exists(med_req_path):
+        logging.info("  -> Loading medication.csv...")
+        medication = safe_read_csv(
+            med_path,
+            usecols=lambda c: c in {"(1) id", "(1.1) code.coding.code", "(1) code.text"} or c.endswith("code.coding.code")
+        )
+        if not medication.empty:
+            medication['medication_id'] = medication['(1) id'] if "(1) id" in medication.columns else np.nan
+            medication['atc_code'] = medication['(1.1) code.coding.code'] if "(1.1) code.coding.code" in medication.columns else np.nan
+            medication['medication_display'] = medication['(1) code.text'] if "(1) code.text" in medication.columns else np.nan
+
+        logging.info("  -> Loading medicationRequest.csv (streaming in chunks)...")
+        all_study_patients = set(asthma_patients['patient_id']).union(set(copd_patients['patient_id']))
         matching_rows = []
-        for col in route_cols:
-            sub = medicationRequest[medicationRequest[col] == 'Intrapulmonary use'][['patient_id', 'medication_id']].copy()
-            if not sub.empty:
-                sub['route_display'] = 'Intrapulmonary use'
-                matching_rows.append(sub)
-                
+        total_med_req = 0
+        med_req_reader = safe_read_csv(
+            med_req_path,
+            usecols=lambda c: c in {"(1) subject.reference", "(1) medicationReference.reference"} or c.endswith("dosageInstruction.route.coding.display"),
+            chunksize=100000
+        )
+        for chunk in med_req_reader:
+            total_med_req += len(chunk)
+            if "(1) subject.reference" in chunk.columns and "(1) medicationReference.reference" in chunk.columns:
+                chunk['patient_id'] = chunk['(1) subject.reference'].astype(str).str.replace('Patient/', '')
+                chunk['medication_id'] = chunk['(1) medicationReference.reference'].astype(str).str.replace('Medication/', '')
+                chunk = chunk[chunk['patient_id'].isin(all_study_patients)]
+                if not chunk.empty:
+                    route_cols = [c for c in chunk.columns if c.endswith('dosageInstruction.route.coding.display')]
+                    for col in route_cols:
+                        sub = chunk[chunk[col] == 'Intrapulmonary use'][['patient_id', 'medication_id']].copy()
+                        if not sub.empty:
+                            sub['route_display'] = 'Intrapulmonary use'
+                            matching_rows.append(sub)
+
         if matching_rows:
             inhalation_requests = pd.concat(matching_rows, ignore_index=True).drop_duplicates()
         else:
             inhalation_requests = pd.DataFrame(columns=['patient_id', 'medication_id', 'route_display'])
-            
-        # Free medicationRequest from memory as it is not needed anywhere else
-        del medicationRequest
-        gc.collect()
-        
-        if not inhalation_requests.empty:
+
+        logging.info(f"  -> medicationRequest.csv: read {total_med_req} rows, kept {len(inhalation_requests)} study patient inhalation rows.")
+
+        if not inhalation_requests.empty and not medication.empty:
             inhalation_requests = inhalation_requests.merge(medication[['medication_id', 'atc_code', 'medication_display']], on='medication_id', how='left')
             inhalation_requests = inhalation_requests.dropna(subset=['atc_code'])
 
@@ -446,6 +486,15 @@ def main():
 
             result_medications_asthma = aggregate_meds(inhalation_requests, asthma_patients, "Asthma").to_dict(orient='records')
             result_medications_copd = aggregate_meds(inhalation_requests, copd_patients, "COPD").to_dict(orient='records')
+
+        if 'medication' in locals():
+            del medication
+        if 'inhalation_requests' in locals():
+            del inhalation_requests
+        gc.collect()
+        logging.info("  -> Medication data processed and memory freed.")
+    else:
+        logging.info("  -> Medication files not found or skipped.")
 
     # --- ANALYSIS 3: IgE Values ---
     logging.info("  -> Analysis 3: IgE Values...")
